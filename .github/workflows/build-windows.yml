@@ -1,0 +1,31 @@
+name: Build Windows app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm install
+      - name: Check project
+        run: npm run check
+      - name: Build installer and portable EXE
+        run: npm run dist:win
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Minecraft-AI-Companion-Windows
+          path: dist/*

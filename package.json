@@ -1,0 +1,71 @@
+{
+  "name": "minecraft-ai-companion",
+  "version": "0.3.1",
+  "description": "Immersive local AI companion for Minecraft Java Edition",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "nodemon --watch src --exec electron .",
+    "bot-only": "node src/botManager-cli.js",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "setup": "npm install",
+    "dist:win": "electron-builder --win nsis",
+    "pack:win": "electron-builder --win dir",
+    "dist:portable": "electron-builder --win portable",
+    "check": "node scripts/check-project.js"
+  },
+  "dependencies": {
+    "mineflayer": "^4.23.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "dotenv": "^16.4.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "nodemon": "^3.1.0"
+  },
+  "build": {
+    "appId": "com.companion.minecraft",
+    "productName": "Companion",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "data/.gitkeep",
+      "package.json",
+      ".env.example"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "src/**/*"
+    ],
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Minecraft AI Companion"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

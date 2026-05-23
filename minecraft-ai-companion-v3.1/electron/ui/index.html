@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://crafatar.com data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"/>
+<title>Companion Control Panel</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#0d1117;--bg1:#161b27;--bg2:#1c2333;--bg3:#243047;--bg4:#2d3a55;
+  --border:#26334d;--border2:#384f72;
+  --text:#cdd6f4;--text2:#8ea3c3;--text3:#4e6080;
+  --green:#a6e3a1;--red:#f38ba8;--yellow:#f9e2af;--blue:#89b4fa;
+  --purple:#cba6f7;--teal:#94e2d5;--peach:#fab387;--sky:#89dceb;--pink:#f5c2e7;
+  --accent:#7c9ef8;--accent2:#5b7de8;
+  --r:9px;--rsm:6px;--rxs:4px;
+  font-size:13px;color:var(--text);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+body{background:var(--bg0);display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
+
+/* ── Titlebar ── */
+#tb{height:40px;background:var(--bg1);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:10px;-webkit-app-region:drag;flex-shrink:0}
+.tb-logo{font-size:15px;font-weight:800;color:var(--accent);-webkit-app-region:no-drag;letter-spacing:-.3px}
+.tb-tag{font-size:11px;color:var(--text3)}
+#tb-char{margin-left:auto;display:flex;align-items:center;gap:7px;background:var(--bg2);
+  border:1px solid var(--border2);border-radius:20px;padding:3px 10px 3px 4px;
+  -webkit-app-region:no-drag;cursor:pointer;transition:border-color .15s}
+#tb-char:hover{border-color:var(--accent)}
+.tb-av{width:24px;height:24px;border-radius:50%;background:var(--bg3);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.tb-av img{width:100%;height:100%;image-rendering:pixelated}
+.tb-cname{font-size:12px;font-weight:700;color:var(--text)}
+#tb-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s}
+#tb-dot.green{background:var(--green)}#tb-dot.yellow{background:var(--yellow)}#tb-dot.red{background:var(--red)}
+
+/* ── Layout ── */
+#app{display:flex;flex:1;overflow:hidden}
+#sidebar{width:214px;background:var(--bg1);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Sidebar ── */
+.nsec{padding:16px 12px 4px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.09em;color:var(--text3)}
+.ni{display:flex;align-items:center;gap:9px;padding:7px 14px;
+  border-radius:var(--rsm);margin:1px 6px;cursor:pointer;color:var(--text2);
+  transition:background .12s,color .12s;font-size:12.5px}
+.ni:hover{background:var(--bg2);color:var(--text)}
+.ni.active{background:var(--bg3);color:var(--accent);font-weight:700}
+.ni .ico{width:16px;text-align:center;font-size:14px;flex-shrink:0}
+.ni .nbadge{margin-left:auto;font-size:10px;background:var(--red);color:#fff;
+  border-radius:10px;padding:1px 5px;font-weight:700;min-width:18px;text-align:center;display:none}
+#sb-bot{margin-top:auto;padding:10px 8px;border-top:1px solid var(--border)}
+.spill{display:flex;align-items:center;gap:8px;padding:8px 10px;
+  background:var(--bg2);border-radius:var(--rsm)}
+.sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--text3);transition:background .3s}
+.sdot.green{background:var(--green)}.sdot.yellow{background:var(--yellow)}.sdot.red{background:var(--red)}
+#sb-stxt{font-size:11.5px;color:var(--text2);line-height:1.4;flex:1}
+
+/* ── Topbar ── */
+#topbar{height:50px;background:var(--bg1);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 18px;gap:10px;flex-shrink:0}
+.sp{flex:1}
+.tpinfo{font-size:11.5px;color:var(--text3)}
+
+/* ── Buttons ── */
+.btn{padding:6px 14px;border-radius:var(--rsm);border:1px solid var(--border2);
+  background:var(--bg2);color:var(--text);cursor:pointer;font-size:12px;
+  font-family:inherit;transition:all .12s;line-height:1.4;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--bg3);border-color:var(--accent)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.pri:hover:not(:disabled){background:var(--accent2)}
+.btn.dan{border-color:var(--red);color:var(--red)}
+.btn.dan:hover:not(:disabled){background:#f38ba815}
+.btn.suc{border-color:var(--green);color:var(--green);background:#162a16}
+.btn.suc:hover:not(:disabled){background:#1d3a1d}
+.btn.sm{padding:4px 10px;font-size:11.5px}
+.btn.xs{padding:2px 7px;font-size:11px}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--text2)}
+.btn.ghost:hover:not(:disabled){background:var(--bg2);color:var(--text)}
+
+/* ── Pages ── */
+.page{display:none;flex:1;overflow-y:auto;padding:20px 22px}
+.page.active{display:block}
+.phdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px}
+.ptitle{font-size:16px;font-weight:800;color:var(--text)}
+.psub{font-size:11.5px;color:var(--text3);margin-top:3px;line-height:1.4}
+.phdr-actions{display:flex;gap:8px;flex-shrink:0;align-items:center}
+
+/* ── Cards ── */
+.card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--r);
+  padding:16px 18px;margin-bottom:14px}
+.chdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px}
+.ctitle{font-size:10.5px;font-weight:800;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.08em}
+.row{display:flex;gap:12px;margin-bottom:12px}
+.row:last-child{margin-bottom:0}
+.col{flex:1}.col2{flex:.5}.col3{flex:.35}
+
+/* ── Forms ── */
+label.lbl{font-size:12px;color:var(--text2);display:block;margin-bottom:4px}
+input,select,textarea{width:100%;padding:6px 10px;background:var(--bg2);
+  border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);
+  font-family:inherit;font-size:12.5px;outline:none;transition:border-color .12s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input::placeholder,textarea::placeholder{color:var(--text3)}
+textarea{resize:vertical;line-height:1.55}
+select option{background:var(--bg2)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+
+/* ── Checkboxes — permission grid ── */
+.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.perm-item{display:flex;align-items:center;gap:8px;padding:8px 10px;
+  background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rsm);cursor:pointer;
+  transition:all .12s}
+.perm-item:hover{border-color:var(--border2)}
+.perm-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.perm-item.granted{border-color:var(--green);background:#162a16}
+.perm-item.revoked{border-color:var(--red);background:#2a1212}
+.perm-item .pi-lbl{font-size:12px;color:var(--text);flex:1}
+.perm-item .pi-sub{font-size:10.5px;color:var(--text3)}
+
+/* ── Sliders ── */
+.srow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.srow label{min-width:140px;margin-bottom:0;font-size:12px;color:var(--text2)}
+input[type=range]{flex:1;accent-color:var(--accent);cursor:pointer;height:4px}
+.sval{min-width:46px;text-align:right;font-size:12px;color:var(--text);
+  font-variant-numeric:tabular-nums;font-weight:600}
+
+/* ── Trait sliders ── */
+.trait-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+.trow{margin-bottom:18px}
+.thdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.tlbl{font-size:12.5px;font-weight:700;color:var(--text)}
+.tscore{font-size:22px;font-weight:800;color:var(--accent);line-height:1}
+.tdesc{font-size:11px;color:var(--text3);margin-top:3px;line-height:1.4;min-height:28px}
+input.tsl{accent-color:var(--accent);cursor:pointer;width:100%;margin-top:5px}
+
+/* ── Toggles ── */
+.tog-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.tog{position:relative;width:36px;height:20px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0;position:absolute}
+.tog-sl{position:absolute;inset:0;background:var(--bg3);border-radius:10px;cursor:pointer;transition:.2s}
+.tog-sl::before{content:'';position:absolute;width:14px;height:14px;border-radius:50%;
+  background:var(--text3);left:3px;top:3px;transition:.2s}
+.tog input:checked+.tog-sl{background:var(--accent)}
+.tog input:checked+.tog-sl::before{transform:translateX(16px);background:#fff}
+.tog-lbl{font-size:12.5px;color:var(--text2);line-height:1.4}
+
+/* ── Tone chips ── */
+.tone-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tone-chip{padding:9px 10px;border-radius:var(--rsm);border:1px solid var(--border2);
+  background:var(--bg2);cursor:pointer;text-align:center;transition:all .12s}
+.tone-chip:hover{border-color:var(--accent)}
+.tone-chip.active{border-color:var(--accent);background:var(--bg3)}
+.tc-name{font-weight:700;font-size:12px;color:var(--text);margin-bottom:2px}
+.tc-desc{font-size:10.5px;color:var(--text3);line-height:1.3}
+
+/* ── Mode chips ── */
+.mode-chips{display:flex;gap:8px;flex-wrap:wrap}
+.mode-chip{padding:7px 14px;border-radius:var(--rsm);border:1px solid var(--border2);
+  background:var(--bg2);cursor:pointer;font-size:12px;transition:all .12s}
+.mode-chip:hover{border-color:var(--accent)}
+.mode-chip.active{border-color:var(--accent);background:var(--bg3);color:var(--accent);font-weight:700}
+
+/* ── Trust buttons ── */
+.trust-row{display:flex;gap:8px}
+.trust-btn{flex:1;padding:10px 8px;border-radius:var(--rsm);border:1px solid var(--border2);
+  background:var(--bg2);cursor:pointer;text-align:center;font-family:inherit;
+  font-size:12px;color:var(--text2);transition:all .12s}
+.trust-btn:hover{border-color:var(--accent);color:var(--text)}
+.trust-btn.active{border-color:var(--accent);background:var(--bg3);color:var(--accent);font-weight:700}
+.trust-btn .ts{display:block;font-size:10px;color:var(--text3);font-weight:400;margin-top:2px}
+
+/* ── Profile chips ── */
+.pcwrap{display:flex;gap:8px;flex-direction:column}
+.pchip{padding:12px 14px;border-radius:var(--rsm);border:1px solid var(--border2);
+  background:var(--bg2);cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:10px}
+.pchip:hover{border-color:var(--accent)}
+.pchip.active{border-color:var(--accent);background:var(--bg3)}
+.pchip-ico{font-size:18px;flex-shrink:0}
+.pchip-name{font-weight:700;font-size:12.5px;color:var(--text);margin-bottom:2px}
+.pchip-desc{font-size:11px;color:var(--text3)}
+
+/* ── Meters ── */
+.meter{margin-bottom:11px}
+.mhdr{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text2);margin-bottom:4px}
+.mbar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.mfill{height:100%;border-radius:3px;transition:width .7s,background .4s;background:var(--accent)}
+.mfill.warn{background:var(--yellow)}.mfill.danger{background:var(--red)}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10.5px;
+  font-weight:700;background:var(--bg3);color:var(--text3)}
+.badge.fresh{background:#162a16;color:var(--green)}
+.badge.warn{background:#2a2910;color:var(--yellow)}
+.badge.stale{background:#2a1212;color:var(--red)}
+.badge.ok{background:#162a16;color:var(--green)}
+.badge.info{background:#1a2440;color:var(--blue)}
+.badge.purple{background:#1e1630;color:var(--purple)}
+.badge.orange{background:#2a1a10;color:var(--peach)}
+
+/* ── Tags ── */
+.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10.5px;font-weight:700}
+.tag.house,.tag.ai_home,.tag.building{background:#1a2e4a;color:var(--blue)}
+.tag.farm{background:#162a16;color:var(--green)}
+.tag.danger{background:#2a1212;color:var(--red)}
+.tag.storage{background:#2a2510;color:var(--yellow)}
+.tag.village,.tag.animal_pen{background:#1e1230;color:var(--purple)}
+.tag.waypoint,.tag.poi{background:#1a2535;color:var(--text2)}
+
+/* ── Freshness bar ── */
+.fbar{height:3px;border-radius:2px;background:var(--bg3);margin-top:4px;overflow:hidden}
+.fbar-fill{height:100%;border-radius:2px}
+.fbar-fill.fresh{background:var(--green)}.fbar-fill.warn{background:var(--yellow)}.fbar-fill.stale{background:var(--red)}
+
+/* ── Tables ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:10.5px;color:var(--text3);font-weight:700;
+  text-transform:uppercase;padding:7px 10px;border-bottom:1px solid var(--border)}
+.tbl td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--bg2)}
+.mono{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var(--teal)}
+
+/* ── Chat ── */
+#chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 90px)}
+#chat-log{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:4px}
+.cmsg{display:flex;gap:9px;padding:2px 0;align-items:flex-start}
+.cwho{font-weight:700;font-size:12px;min-width:82px;text-align:right;flex-shrink:0;padding-top:1px}
+.cwho.player{color:var(--blue)}.cwho.bot{color:var(--purple)}.cwho.system{color:var(--text3)}
+.cwho.offline{color:var(--peach)}.cwho.ollama{color:var(--teal)}.cwho.openai{color:var(--green)}
+.ctxt{font-size:12.5px;color:var(--text);line-height:1.55;word-break:break-word;flex:1}
+.ctxt.err{color:var(--red)}.ctxt.sys{color:var(--text3)}
+#offline-banner{background:#1e1a10;border:1px solid var(--peach);border-radius:var(--rsm);
+  padding:7px 12px;font-size:11.5px;color:var(--peach);margin:8px 18px 0;display:none}
+#provider-indicator{font-size:10.5px;color:var(--text3);padding:0 18px 4px;text-align:right}
+#chat-input-row{display:flex;gap:8px;padding:10px 18px;
+  border-top:1px solid var(--border);background:var(--bg1);flex-shrink:0}
+#chat-input{flex:1;padding:7px 12px;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:var(--rsm);color:var(--text);font-size:12.5px;font-family:inherit;outline:none}
+#chat-input:focus{border-color:var(--accent)}
+
+/* ── LLM stats bar ── */
+#llm-bar{display:flex;align-items:center;gap:12px;padding:6px 12px;
+  background:var(--bg2);border-radius:var(--rsm);font-size:11.5px;flex-wrap:wrap}
+.llm-stat{display:flex;align-items:center;gap:5px;color:var(--text2)}
+.llm-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.llm-dot.ollama{background:var(--teal)}.llm-dot.openai{background:var(--green)}
+.llm-dot.off{background:var(--text3)}
+
+/* ── Stale rows ── */
+.stale-row{padding:13px 0;border-bottom:1px solid var(--border)}
+.stale-row:last-child{border-bottom:none}
+.shdr{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.slbl{font-weight:700;font-size:12.5px;color:var(--text);flex:1}
+.sdesc{font-size:11.5px;color:var(--text3);margin-bottom:8px;line-height:1.4}
+.sctrl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sint{display:flex;align-items:center;gap:6px}
+.sint input[type=number]{width:72px}
+.sint select{width:95px}
+
+/* ── Worker status ── */
+#worker-status{display:none;background:var(--bg2);border:1px solid var(--peach);
+  border-radius:var(--rsm);padding:8px 12px;margin-bottom:12px;
+  display:flex;align-items:center;gap:10px}
+#worker-status.active{display:flex}
+#worker-status:not(.active){display:none}
+.wprogress{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.wpfill{height:100%;background:var(--peach);border-radius:2px;transition:width .4s}
+
+/* ── Portrait ── */
+#char-portrait{width:80px;height:80px;border-radius:12px;background:var(--bg3);
+  border:2px solid var(--border2);display:flex;align-items:center;
+  justify-content:center;font-size:36px;overflow:hidden;flex-shrink:0}
+#char-portrait img{width:100%;height:100%;image-rendering:pixelated}
+
+/* ── Test result ── */
+.test-result{padding:7px 10px;border-radius:var(--rsm);font-size:12px;margin-top:8px;display:none}
+.test-result.ok{background:#162a16;color:var(--green);border:1px solid var(--green);display:block}
+.test-result.fail{background:#2a1212;color:var(--red);border:1px solid var(--red);display:block}
+
+/* ── Error banner ── */
+.err-banner{background:#2a1212;border:1px solid var(--red);border-radius:var(--rsm);
+  padding:8px 12px;font-size:12px;color:var(--red);margin-bottom:10px;display:none}
+.err-banner.show{display:block}
+
+/* ── Misc ── */
+.empty{color:var(--text3);text-align:center;padding:36px;font-size:12.5px;line-height:1.6}
+.dim{color:var(--text3);font-size:11.5px}
+.dim2{color:var(--text3);font-size:11px}
+hr.rule{border:none;border-top:1px solid var(--border);margin:14px 0}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var(--teal);
+  background:var(--bg2);padding:1px 5px;border-radius:3px}
+</style>
+</head>
+<body>
+<!-- TITLEBAR -->
+<div id="tb">
+  <span class="tb-logo">⛏ Companion</span>
+  <span class="tb-tag">Control Panel v0.3</span>
+  <div id="tb-char" onclick="navTo('character')">
+    <div class="tb-av" id="tb-av"><span>🧑</span></div>
+    <span class="tb-cname" id="tb-cname">Bud</span>
+    <div id="tb-dot"></div>
+  </div>
+</div>
+
+<div id="app">
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="nsec">Control</div>
+  <div class="ni active" data-page="dashboard"><span class="ico">◈</span>Dashboard</div>
+  <div class="ni" data-page="chat"><span class="ico">💬</span>Chat<span class="nbadge" id="chat-badge">0</span></div>
+  <div class="nsec">Companion</div>
+  <div class="ni" data-page="character"><span class="ico">🎭</span>Character</div>
+  <div class="ni" data-page="ai"><span class="ico">🤖</span>AI & Models</div>
+  <div class="nsec">World</div>
+  <div class="ni" data-page="memory"><span class="ico">📍</span>Memory</div>
+  <div class="ni" data-page="staleness"><span class="ico">🕐</span>Cache Timing</div>
+  <div class="ni" data-page="permissions"><span class="ico">🔐</span>Permissions</div>
+  <div class="nsec">System</div>
+  <div class="ni" data-page="resources"><span class="ico">⚡</span>Resources</div>
+  <div class="ni" data-page="settings"><span class="ico">⚙</span>Settings</div>
+  <div class="ni" data-page="log"><span class="ico">📋</span>Activity Log</div>
+  <div id="sb-bot">
+    <div class="spill">
+      <div class="sdot" id="sb-dot"></div>
+      <div id="sb-stxt">Disconnected</div>
+    </div>
+  </div>
+</nav>
+
+<div id="main">
+<div id="topbar">
+  <button class="btn pri" id="btn-con">Join World</button>
+  <button class="btn dan" id="btn-dis" style="display:none">Disconnect</button>
+  <span class="sp"></span>
+  <span class="tpinfo" id="tp-profile">Profile: —</span>
+  <span class="tpinfo" id="tp-worker" style="display:none;color:var(--peach)">⚙ Working…</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════ DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="phdr"><div><div class="ptitle">Dashboard</div></div></div>
+  <div id="worker-status">
+    <span style="color:var(--peach);font-size:12px" id="w-label">Working…</span>
+    <div class="wprogress"><div class="wpfill" id="w-prog" style="width:0%"></div></div>
+    <button class="btn xs dan" onclick="stopWorker()">Stop</button>
+  </div>
+  <div class="row">
+    <div class="card col"><div class="chdr"><div class="ctitle">Status</div></div>
+      <div style="font-size:22px;font-weight:800;color:var(--accent)" id="dash-status">Offline</div>
+      <div class="dim" style="margin-top:4px" id="dash-state">—</div>
+    </div>
+    <div class="card col"><div class="chdr"><div class="ctitle">Memory</div></div>
+      <div style="font-size:22px;font-weight:800;color:var(--teal)" id="dash-mem">0</div>
+      <div class="dim" style="margin-top:4px" id="dash-memstale"></div>
+    </div>
+    <div class="card col"><div class="chdr"><div class="ctitle">Profile</div></div>
+      <div style="font-size:22px;font-weight:800;color:var(--purple)" id="dash-profile">—</div>
+      <div class="dim" style="margin-top:4px" id="dash-hw">—</div>
+    </div>
+  </div>
+  <div class="card"><div class="chdr"><div class="ctitle">Recent Chat</div><button class="btn ghost xs" onclick="navTo('chat')">Open →</button></div>
+    <div id="dash-chat" style="max-height:110px;overflow-y:auto;display:flex;flex-direction:column;gap:3px"><div class="dim">No messages yet.</div></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="chdr"><div class="ctitle">CPU</div><span class="dim" id="dash-cpu-v">—</span></div>
+      <div class="mbar"><div class="mfill" id="dash-cpu-b" style="width:0%"></div></div></div>
+    <div class="card"><div class="chdr"><div class="ctitle">RAM</div><span class="dim" id="dash-ram-v">—</span></div>
+      <div class="mbar"><div class="mfill" id="dash-ram-b" style="width:0%"></div></div></div>
+  </div>
+  <div class="card"><div class="chdr"><div class="ctitle">Quick Commands</div><span class="dim">Sends to Minecraft chat</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn sm" onclick="qcmd('follow me')">▶ Follow me</button>
+      <button class="btn sm" onclick="qcmd('wait here')">⏸ Wait</button>
+      <button class="btn sm" onclick="qcmd('loiter here')">↺ Loiter</button>
+      <button class="btn sm" onclick="qcmd('what do you see')">👁 Observe</button>
+      <button class="btn sm" onclick="qcmd('be talkative')">🗣 Talkative</button>
+      <button class="btn sm" onclick="qcmd('be quiet')">🤫 Quiet</button>
+      <button class="btn sm" onclick="qcmd('keep my farm going')">🌾 Farm</button>
+      <button class="btn sm" onclick="qcmd('patrol this area')">🛡 Patrol</button>
+      <button class="btn sm" onclick="qcmd('collect dropped items')">📦 Collect</button>
+    </div>
+  </div>
+  <div class="card"><div class="chdr"><div class="ctitle">LLM Activity</div><button class="btn ghost xs" onclick="navTo('ai')">Configure →</button></div>
+    <div id="llm-bar"><span class="dim">No LLM activity yet.</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHAT -->
+<div class="page" id="page-chat">
+  <div id="chat-wrap">
+    <div id="offline-banner">⚡ Offline mode — chatting directly with Ollama/OpenAI (not connected to Minecraft)</div>
+    <div id="provider-indicator"></div>
+    <div id="chat-log"></div>
+    <div id="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Talk to the companion… (works offline too)"/>
+      <button class="btn pri" id="chat-send">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CHARACTER -->
+<div class="page" id="page-character">
+  <div class="phdr">
+    <div><div class="ptitle">Character Profile</div><div class="psub">Shapes the LLM system prompt — changes apply immediately</div></div>
+    <div class="phdr-actions">
+      <button class="btn sm pri" id="char-save">Save Profile</button>
+      <button class="btn sm dan" id="char-reset">Reset to Bud</button>
+    </div>
+  </div>
+  <div class="err-banner" id="char-err"></div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Identity</div></div>
+    <div class="row" style="align-items:flex-start;gap:16px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
+        <div id="char-portrait">🧑</div>
+        <div class="dim2" style="text-align:center">Skin preview</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:2px" id="portrait-name">Bud</div>
+        <div class="dim" id="portrait-sub">buddy tone · Waiting</div>
+        <hr class="rule">
+        <div class="row" style="margin-bottom:0">
+          <div class="col"><label class="lbl">Character Name</label><input id="char-name" placeholder="Bud"/></div>
+          <div class="col"><label class="lbl">Minecraft Skin Username</label><input id="char-skin" placeholder="Bud"/></div>
+          <div class="col2"><label class="lbl">Default Mode</label>
+            <select id="char-mode">
+              <option value="WAITING">Waiting</option>
+              <option value="FOLLOWING">Following</option>
+              <option value="LOITERING">Loitering</option>
+              <option value="OBSERVING">Observing</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Speaking Tone</div></div>
+    <div class="tone-grid" id="tone-grid"></div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Personality Traits</div><span class="dim">Slide to adjust — affects temperature & system prompt wording</span></div>
+    <div class="trait-grid" id="trait-grid"></div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Backstory</div><span class="dim">Injected verbatim into LLM system prompt</span></div>
+    <textarea id="char-backstory" rows="7" placeholder="Who is this companion? Where did they come from?"></textarea>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="chdr"><div class="ctitle">Relationship with Player</div></div>
+      <textarea id="char-player-rel" rows="4" placeholder="How does the companion view the player?"></textarea></div>
+    <div class="card"><div class="chdr"><div class="ctitle">Relationship with Villagers</div></div>
+      <textarea id="char-villager-rel" rows="4" placeholder="How does the companion feel about villagers?"></textarea></div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Additional Notes</div><span class="dim">Extra rules, quirks, or roleplay constraints</span></div>
+    <textarea id="char-notes" rows="3" placeholder="e.g. Never damages player builds. Finds creepers fascinating."></textarea>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ AI & MODELS -->
+<div class="page" id="page-ai">
+  <div class="phdr">
+    <div><div class="ptitle">AI &amp; Models</div><div class="psub">Configure Ollama (local) and OpenAI (cloud) — hybrid routing uses both intelligently</div></div>
+    <button class="btn sm pri" id="ai-save">Save AI Settings</button>
+  </div>
+  <div class="err-banner" id="ai-err"></div>
+
+  <!-- Ollama -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Ollama (Local LLM)</div>
+      <div style="display:flex;gap:8px">
+        <span class="badge" id="ollama-badge">unknown</span>
+        <button class="btn xs" id="ollama-test">Test</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col"><label class="lbl">Ollama URL</label><input id="ai-ollama-url" value="http://localhost:11434" placeholder="http://localhost:11434"/></div>
+      <div class="col"><label class="lbl">Model</label><input id="ai-ollama-model" value="llama3.2" placeholder="llama3.2, mistral, qwen2.5:3b…"/></div>
+    </div>
+    <div class="test-result" id="ollama-result"></div>
+    <div class="dim" style="margin-top:6px">Run on another machine: <code>OLLAMA_HOST=0.0.0.0 ollama serve</code> then set URL to its LAN IP.</div>
+  </div>
+
+  <!-- OpenAI -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">OpenAI (Cloud)</div>
+      <div style="display:flex;gap:8px">
+        <span class="badge" id="openai-badge">not configured</span>
+        <button class="btn xs" id="openai-test">Test</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col"><label class="lbl">API Key</label>
+        <input id="ai-openai-key" type="password" placeholder="sk-…  (leave blank to disable)"/></div>
+      <div class="col2"><label class="lbl">Model</label>
+        <input id="ai-openai-model" value="gpt-4o-mini" placeholder="gpt-4o-mini"/></div>
+    </div>
+    <div class="test-result" id="openai-result"></div>
+    <div class="dim" style="margin-top:6px">OpenAI is optional. If set, it's used for high-quality responses (direct player conversation). Leave blank to use Ollama only.</div>
+  </div>
+
+  <!-- Hybrid routing -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Hybrid Routing Strategy</div></div>
+    <div class="row" style="margin-bottom:8px">
+      <div class="col"><label class="lbl">Dialogue provider</label>
+        <select id="ai-dialogue-prov">
+          <option value="hybrid">Hybrid (smart routing)</option>
+          <option value="ollama">Ollama only</option>
+          <option value="openai">OpenAI only</option>
+        </select>
+      </div>
+      <div class="col"><label class="lbl">Intent parser</label>
+        <select id="ai-intent-prov">
+          <option value="ollama">Ollama (recommended — fast &amp; cheap)</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <div class="col"><label class="lbl">Hybrid strategy</label>
+        <select id="ai-strategy">
+          <option value="quality_routing">Quality routing (smart — default)</option>
+          <option value="ollama_primary">Ollama primary, OpenAI fallback</option>
+          <option value="openai_primary">OpenAI primary, Ollama fallback</option>
+          <option value="round_robin">Round robin (alternate calls)</option>
+        </select>
+      </div>
+      <div class="col"><label class="lbl">OpenAI hourly call limit (cost guard)</label>
+        <input id="ai-hourly" type="number" value="30" min="1" max="500" placeholder="30"/></div>
+    </div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">Ollama timeout (ms)</label>
+        <input id="ai-ollama-timeout" type="number" value="20000" min="3000" max="120000"/></div>
+      <div class="col"><label class="lbl">OpenAI timeout (ms)</label>
+        <input id="ai-openai-timeout" type="number" value="15000" min="3000" max="60000"/></div>
+    </div>
+    <div class="dim" style="margin-top:10px;line-height:1.7">
+      <strong style="color:var(--text)">Quality routing</strong> sends intent/ambient/observation calls to Ollama (fast, cheap), and routes direct player conversation + important moments to OpenAI (higher quality). Always falls back to Ollama if OpenAI is unavailable or over limit.
+    </div>
+  </div>
+
+  <!-- Live stats -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Live Usage Stats</div><button class="btn ghost xs" onclick="refreshAIStats()">↻</button></div>
+    <div id="ai-stats" class="dim">Connect to a world to see stats.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ MEMORY -->
+<div class="page" id="page-memory">
+  <div class="phdr">
+    <div><div class="ptitle">World Memory</div><div class="psub" id="mem-sub">0 locations · 0 stale</div></div>
+    <button class="btn sm ghost" id="mem-refresh-btn">↻ Refresh</button>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Add Location</div></div>
+    <div class="err-banner" id="mem-err"></div>
+    <div class="row">
+      <div class="col"><label class="lbl">Name</label><input id="mem-name" placeholder="e.g. Tomato Farm"/></div>
+      <div class="col"><label class="lbl">Type</label>
+        <select id="mem-type">
+          <option value="poi">Point of Interest</option>
+          <option value="house">House</option>
+          <option value="ai_home">AI Home</option>
+          <option value="farm">Farm</option>
+          <option value="storage">Storage</option>
+          <option value="village">Village</option>
+          <option value="danger">Danger Zone</option>
+          <option value="building">Building</option>
+          <option value="animal_pen">Animal Pen</option>
+          <option value="waypoint">Waypoint</option>
+        </select>
+      </div>
+      <div class="col2"><label class="lbl">Owner</label>
+        <select id="mem-owner">
+          <option value="player">Player</option>
+          <option value="ai">AI</option>
+          <option value="neutral">Neutral</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col"><label class="lbl">X</label><input id="mem-x" type="number" placeholder="0"/></div>
+      <div class="col"><label class="lbl">Y</label><input id="mem-y" type="number" placeholder="64"/></div>
+      <div class="col"><label class="lbl">Z</label><input id="mem-z" type="number" placeholder="0"/></div>
+      <div class="col2"><label class="lbl">Radius</label><input id="mem-r" type="number" placeholder="12"/></div>
+    </div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">Notes (optional)</label><input id="mem-notes" placeholder="Any context…"/></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn pri" id="mem-add">Save Location</button></div>
+    </div>
+  </div>
+  <div class="card" style="padding:0">
+    <div style="padding:14px 18px 10px" class="chdr"><div class="ctitle">Saved Locations</div></div>
+    <div id="mem-empty" class="empty">No locations saved yet.<br><span class="dim2">Say "This is my house" in-game, or add one above.</span></div>
+    <div id="mem-tbl-wrap" style="overflow-x:auto;display:none">
+      <table class="tbl">
+        <thead><tr>
+          <th>Name</th><th>Type</th><th>Owner</th><th>Coordinates</th>
+          <th>Freshness</th><th>Last seen</th><th>Interval</th><th>Conf.</th><th></th>
+        </tr></thead>
+        <tbody id="mem-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ CACHE TIMING -->
+<div class="page" id="page-staleness">
+  <div class="phdr">
+    <div><div class="ptitle">Cache Timing</div><div class="psub">How long each memory type stays valid before a rescan</div></div>
+    <div class="phdr-actions">
+      <button class="btn sm pri" id="stale-save">Save All</button>
+      <button class="btn sm dan" id="stale-reset">Reset Defaults</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Global Settings</div><button class="btn sm pri" id="sg-save">Save</button></div>
+    <div class="tog-row">
+      <label class="tog"><input type="checkbox" id="sg-cache-first" checked/><span class="tog-sl"></span></label>
+      <span class="tog-lbl">Answer from cache first — use saved data before rescanning</span>
+    </div>
+    <div class="tog-row">
+      <label class="tog"><input type="checkbox" id="sg-verify"/><span class="tog-sl"></span></label>
+      <span class="tog-lbl">Always verify before action — recheck stale data before doing tasks</span>
+    </div>
+    <div class="srow" style="margin-top:8px">
+      <label>Stale warning threshold</label>
+      <input type="range" id="sg-warn" min="50" max="99" value="80"/>
+      <span class="sval" id="sg-warn-v">80%</span>
+    </div>
+    <div class="dim">Warning badge shown when this % of the cache interval has elapsed.</div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Per-Category Intervals</div></div>
+    <div id="stale-cats"><div class="dim" style="padding:8px">Loading…</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ PERMISSIONS -->
+<div class="page" id="page-permissions">
+  <div class="phdr">
+    <div><div class="ptitle">Permissions</div><div class="psub">What the companion is allowed to do in your world</div></div>
+    <button class="btn ghost xs" onclick="refreshPermissions()">↻ Refresh</button>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Trust Level</div></div>
+    <div class="trust-row" id="trust-row">
+      <button class="trust-btn" data-trust="OBSERVER">Observer<span class="ts">No world interaction</span></button>
+      <button class="trust-btn active" data-trust="COMPANION">Companion<span class="ts">Movement &amp; chat only</span></button>
+      <button class="trust-btn" data-trust="WORKER">Worker<span class="ts">Approved tasks</span></button>
+      <button class="trust-btn" data-trust="AUTONOMOUS">Autonomous<span class="ts">Broad permissions</span></button>
+    </div>
+    <div class="dim" style="margin-top:10px">⛔ <strong style="color:var(--red)">Hard-forbidden forever</strong> regardless of trust: lava, TNT, fire, mass destruction, attacking passive mobs.</div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Action Permissions</div><span class="dim">Check to grant, uncheck to revoke</span></div>
+    <div class="perm-grid" id="perm-grid"></div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Area-Based Grants</div><span class="dim">Restrict a permission to a specific saved location</span></div>
+    <div class="row" style="align-items:flex-end;margin-bottom:0">
+      <div class="col"><label class="lbl">Action</label>
+        <select id="area-action">
+          <option value="harvest_crops">Harvest crops</option>
+          <option value="plant_seeds">Plant seeds</option>
+          <option value="open_chest">Open chests</option>
+          <option value="place_blocks">Place blocks</option>
+          <option value="attack_hostile">Attack hostiles</option>
+          <option value="collect_drops">Collect drops</option>
+        </select>
+      </div>
+      <div class="col"><label class="lbl">Only inside area</label>
+        <input id="area-location" placeholder="e.g. Tomato Farm"/></div>
+      <div><button class="btn pri sm" id="area-grant">Grant Area Permission</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Current State</div></div>
+    <div id="perm-state" class="dim">Loading…</div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">In-Game Commands Reference</div></div>
+    <div class="dim" style="line-height:2">
+      <code>"You can harvest crops"</code> → grant harvest &nbsp;·&nbsp; <code>"Do not touch storage"</code> → revoke chests<br>
+      <code>"Read-only mode"</code> → Observer &nbsp;·&nbsp; <code>"Worker mode"</code> / <code>"Autonomous mode"</code><br>
+      <code>"yes"</code> / <code>"no"</code> → approve or deny a pending action request
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ RESOURCES -->
+<div class="page" id="page-resources">
+  <div class="phdr">
+    <div><div class="ptitle">Resource Allocation</div><div class="psub">Keeps the companion from impacting Minecraft performance</div></div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="chdr"><div class="ctitle">Hardware Limits</div></div>
+      <div class="srow"><label>Max CPU usage</label>
+        <input type="range" id="res-cpu" min="5" max="80" value="25"/>
+        <span class="sval" id="res-cpu-v">25%</span></div>
+      <div class="srow"><label>Max RAM (GB)</label>
+        <input type="range" id="res-ram" min="1" max="32" value="2"/>
+        <span class="sval" id="res-ram-v">2 GB</span></div>
+      <div class="tog-row" style="margin-top:8px">
+        <label class="tog"><input type="checkbox" id="res-dynamic" checked/><span class="tog-sl"></span></label>
+        <span class="tog-lbl">Dynamic Mode — AI scales automatically within your limits</span>
+      </div>
+      <button class="btn pri sm" id="res-apply" style="margin-top:10px">Apply Limits</button>
+      <div class="dim" id="res-note" style="margin-top:6px"></div>
+    </div>
+    <div>
+      <div class="card"><div class="chdr"><div class="ctitle">Performance Profile</div></div>
+        <div class="pcwrap" id="profile-chips">
+          <div class="pchip" data-profile="lightweight">
+            <div class="pchip-ico">💤</div>
+            <div><div class="pchip-name">Lightweight</div><div class="pchip-desc">No LLM · 60 s scan · lowest CPU · deterministic only</div></div>
+          </div>
+          <div class="pchip active" data-profile="normal">
+            <div class="pchip-ico">⚡</div>
+            <div><div class="pchip-name">Normal</div><div class="pchip-desc">LLM on · 15 s scan · 45 s talk · 1 concurrent</div></div>
+          </div>
+          <div class="pchip" data-profile="heavy">
+            <div class="pchip-ico">🔥</div>
+            <div><div class="pchip-name">Heavy</div><div class="pchip-desc">Deep memory · 8 s scan · background tasks · AFK mode</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div class="chdr"><div class="ctitle">Live Metrics</div></div>
+    <div class="meter"><div class="mhdr"><span>CPU</span><span id="res-cpu-live">—</span></div>
+      <div class="mbar"><div class="mfill" id="res-cpu-b" style="width:0%"></div></div></div>
+    <div class="meter"><div class="mhdr"><span>RAM</span><span id="res-ram-live">—</span></div>
+      <div class="mbar"><div class="mfill" id="res-ram-b" style="width:0%"></div></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="phdr">
+    <div><div class="ptitle">Settings</div></div>
+    <button class="btn pri" id="s-save">Save Settings</button>
+  </div>
+  <div class="err-banner" id="s-err"></div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Server Connection</div></div>
+    <div class="row">
+      <div class="col"><label class="lbl">Host / IP</label><input id="s-host" value="localhost"/></div>
+      <div class="col2"><label class="lbl">Port</label><input id="s-port" value="25565" type="number"/></div>
+      <div class="col2"><label class="lbl">MC Version</label><input id="s-ver" value="1.21.1"/></div>
+    </div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">Bot Username <span class="dim2">(blank = use character name)</span></label>
+        <input id="s-user" placeholder="Leave blank to use character name"/></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Behaviour Tuning</div></div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">Follow distance (blocks)</label><input id="s-follow" type="number" value="3" min="1" max="20"/></div>
+      <div class="col"><label class="lbl">Loiter radius (blocks)</label><input id="s-loiter" type="number" value="8" min="2" max="64"/></div>
+      <div class="col"><label class="lbl">Response delay (ms)</label><input id="s-delay" type="number" value="1500" min="0" max="10000"/></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Data Files</div></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn sm" id="s-opendata">📂 Open data folder</button>
+      <span class="dim">world-memory.json · staleness-config.json · character-profile.json · activity-log.json</span>
+    </div>
+    <div class="dim" style="margin-top:8px">Back up the <code>data/</code> folder to preserve Bud's world knowledge between reinstalls.</div>
+  </div>
+  <div class="card">
+    <div class="chdr"><div class="ctitle">About</div></div>
+    <div class="dim" style="line-height:1.8">
+      Minecraft AI Companion v0.3 &nbsp;·&nbsp; Fabric 1.21.x compatible<br>
+      Headless CLI: <code>node src/botManager-cli.js</code><br>
+      GitHub: add your repo URL here
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ LOG -->
+<div class="page" id="page-log">
+  <div class="phdr">
+    <div><div class="ptitle">Activity Log</div><div class="psub">Persisted in data/activity-log.json · last 500 entries</div></div>
+    <div class="phdr-actions">
+      <button class="btn sm ghost" id="log-refresh">↻ Refresh</button>
+      <button class="btn sm dan" id="log-clear">Clear</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0">
+    <div id="log-list"><div class="empty">No activity yet.</div></div>
+  </div>
+</div>
+
+</div></div></div>
+
+<script>
+'use strict';
+const api = window.companion;
+const $ = id => document.getElementById(id);
+const chatMsgs = [];
+let charMeta = null, traitValues = {}, stalePending = {}, logEntries = [];
+let isConnected = false, unread = 0, curPage = 'dashboard';
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function timeStr(ts){ return ts ? new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—'; }
+function agoStr(ts){
+  if(!ts) return '—';
+  const m=Math.floor((Date.now()-ts)/60000);
+  if(m<1) return 'just now'; if(m<60) return m+'m ago';
+  const h=Math.floor(m/60); return h<24 ? h+'h ago' : Math.floor(h/24)+'d ago';
+}
+function msToUnit(ms,unit){ return unit==='seconds'?Math.round(ms/1000):unit==='hours'?Math.round(ms/3600000):Math.round(ms/60000); }
+function unitToMs(v,unit){ return unit==='seconds'?v*1000:unit==='hours'?v*3600000:v*60000; }
+function showErr(id,msg){ const e=$(id); if(!e) return; e.textContent=msg; e.classList.add('show'); setTimeout(()=>e.classList.remove('show'),5000); }
+
+// ── Settings (localStorage) ───────────────────────────────────────────────────
+const SK='companion-v3';
+function getS(){ try{ return JSON.parse(localStorage.getItem(SK))||{}; }catch{ return {}; } }
+function saveS(){
+  const s={ host:$('s-host').value,port:+$('s-port').value,version:$('s-ver').value,
+    username:$('s-user').value,followDistance:+$('s-follow').value,
+    loiterRadius:+$('s-loiter').value,responseDelay:+$('s-delay').value };
+  if(!s.host){ showErr('s-err','Host is required'); return false; }
+  if(!s.port||s.port<1||s.port>65535){ showErr('s-err','Invalid port'); return false; }
+  localStorage.setItem(SK,JSON.stringify(s)); return s;
+}
+function applyS(s){
+  if(s.host)           $('s-host').value  =s.host;
+  if(s.port)           $('s-port').value  =s.port;
+  if(s.version)        $('s-ver').value   =s.version;
+  if(s.username!=null) $('s-user').value  =s.username;
+  if(s.followDistance) $('s-follow').value=s.followDistance;
+  if(s.loiterRadius)   $('s-loiter').value=s.loiterRadius;
+  if(s.responseDelay)  $('s-delay').value =s.responseDelay;
+}
+$('s-save').addEventListener('click',()=>{ const ok=saveS(); if(ok) addSysMsg('Settings saved.'); });
+$('s-opendata').addEventListener('click',()=>api.openDataFolder());
+applyS(getS());
+
+// ── Build connect config ──────────────────────────────────────────────────────
+function buildCfg(){
+  const s=getS();
+  return {
+    bot:{ host:s.host||'localhost',port:s.port||25565,username:s.username||'',version:s.version||'1.21.1',auth:'offline'},
+    companion:{ observeIntervalMs:10000,talkativeIntervalMs:45000,
+      followDistance:s.followDistance||3,loiterRadius:s.loiterRadius||8,responseDelayMs:s.responseDelay||1500},
+    ollama:{ baseUrl:$('ai-ollama-url')?.value||'http://localhost:11434',
+             model:$('ai-ollama-model')?.value||'llama3.2',
+             dialogueModel:$('ai-ollama-model')?.value||'llama3.2',
+             timeoutMs:+($('ai-ollama-timeout')?.value||20000)},
+    openai:{ apiKey:$('ai-openai-key')?.value||'',model:$('ai-openai-model')?.value||'gpt-4o-mini',
+             timeoutMs:+($('ai-openai-timeout')?.value||15000),
+             enabled:!!($('ai-openai-key')?.value?.startsWith('sk-'))},
+    hybrid:{ dialogueProvider:$('ai-dialogue-prov')?.value||'hybrid',
+             intentProvider:$('ai-intent-prov')?.value||'ollama',
+             strategy:$('ai-strategy')?.value||'quality_routing',
+             openAiHourlyLimit:+($('ai-hourly')?.value||30)},
+  };
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function navTo(page){
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const ni=document.querySelector(`.ni[data-page="${page}"]`);
+  if(ni) ni.classList.add('active');
+  const pg=$('page-'+page);
+  if(pg) pg.classList.add('active');
+  curPage=page;
+  if(page==='chat'){ unread=0; $('chat-badge').style.display='none'; $('chat-badge').textContent='0'; }
+  if(page==='memory')      refreshMemory();
+  if(page==='log')         refreshLog();
+  if(page==='permissions') refreshPermissions();
+  if(page==='staleness')   refreshStaleness();
+  if(page==='character')   loadCharacter();
+  if(page==='ai')          loadAISettings();
+  if(page==='resources')   loadResourceLimits();
+}
+document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>navTo(el.dataset.page)));
+$('tb-char').addEventListener('click',()=>navTo('character'));
+
+// ── Connect / Disconnect ──────────────────────────────────────────────────────
+$('btn-con').addEventListener('click',async()=>{
+  $('btn-con').disabled=true;
+  const r=await api.connect(buildCfg()).catch(e=>({ok:false,error:e.message}));
+  if(!r.ok){ addSysMsg(`Connect failed: ${r.error||'?'}`,'err'); $('btn-con').disabled=false; }
+});
+$('btn-dis').addEventListener('click',async()=>{
+  await api.disconnect().catch(()=>{});
+  $('btn-con').style.display=''; $('btn-dis').style.display='none';
+  $('btn-con').disabled=false; setStatus('disconnected');
+});
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function setStatus(s){
+  isConnected=!/disconnected|connecting|error/.test(s);
+  const col=s==='disconnected'||s==='error'?'red':s==='connecting'?'yellow':'green';
+  $('sb-stxt').textContent=s; $('dash-status').textContent=s.charAt(0).toUpperCase()+s.slice(1); $('dash-state').textContent=s;
+  ['sb-dot','tb-dot'].forEach(id=>{ const e=$(id); e.className=id==='sb-dot'?'sdot':''; e.classList.add(col); });
+  $('btn-con').style.display=isConnected?'none':''; $('btn-dis').style.display=isConnected?'':'none'; $('btn-con').disabled=false;
+  $('offline-banner').style.display=isConnected?'none':'';
+}
+
+// ── Bot events ────────────────────────────────────────────────────────────────
+api.on('bot:status', s=>{ setStatus(s); if(s!=='disconnected') refreshMemory().catch(()=>{}); });
+api.on('bot:chat',   c=>appendChat(c.from,c.message,c.from==='bot'?'bot':c.from==='system'?'system':'player'));
+api.on('bot:error',  e=>addSysMsg(String(e),'err'));
+api.on('bot:log',    l=>{ const m=typeof l==='string'?l:(l.msg||JSON.stringify(l)); addLogEntry({at:l.at||Date.now(),msg:m}); });
+api.on('bot:resources', r=>updateMeters(r));
+api.on('bot:profile', ({profile})=>{
+  document.querySelectorAll('.pchip').forEach(c=>c.classList.toggle('active',c.dataset.profile===profile));
+  $('tp-profile').textContent='Profile: '+profile;
+});
+api.on('bot:memory', ()=>refreshMemory().catch(()=>{}));
+api.on('bot:permissions', ()=>refreshPermissions().catch(()=>{}));
+api.on('bot:character', p=>{ if(p) applyCharToUI(p); });
+api.on('bot:llm', e=>updateLLMBar(e));
+api.on('bot:llm-error', e=>addSysMsg('LLM error: '+e,'err'));
+api.on('bot:worker', e=>{
+  if(e.event==='start'){ $('worker-status').classList.add('active'); $('w-label').textContent=e.label||'Working…'; $('tp-worker').style.display=''; }
+  if(e.event==='done'||e.event==='error'||e.event==='stop'){ $('worker-status').classList.remove('active'); $('tp-worker').style.display='none'; $('w-prog').style.width='0%'; }
+  if(e.event==='progress'&&e.total){ $('w-prog').style.width=Math.round((e.done/e.total)*100)+'%'; }
+});
+
+// ── Meters ────────────────────────────────────────────────────────────────────
+function updateMeters(r){
+  const cpu=r.cpu||0,rp=r.ramPct||0,ram=`${r.ram}GB/${r.totalRam}GB`;
+  $('dash-cpu-v').textContent=cpu+'%'; $('dash-ram-v').textContent=ram;
+  $('dash-hw').textContent=`CPU ${cpu}% · RAM ${r.ram}GB`; $('dash-profile').textContent=r.profile||'—';
+  $('res-cpu-live').textContent=cpu+'%'; $('res-ram-live').textContent=ram;
+  const fill=(b,p)=>{ const e=$(b); e.style.width=Math.min(p,100)+'%'; e.className='mfill'+(p>85?' danger':p>65?' warn':''); };
+  fill('dash-cpu-b',cpu); fill('dash-ram-b',rp); fill('res-cpu-b',cpu); fill('res-ram-b',rp);
+}
+
+// ── LLM bar ───────────────────────────────────────────────────────────────────
+let llmStats={ollama:0,openai:0,fallbacks:0};
+function updateLLMBar(e){
+  if(e.provider) llmStats[e.provider]=(llmStats[e.provider]||0)+1;
+  if(e.isFallback) llmStats.fallbacks=(llmStats.fallbacks||0)+1;
+  renderLLMBar();
+}
+function renderLLMBar(){
+  const bar=$('llm-bar');
+  const total=llmStats.ollama+llmStats.openai;
+  if(!total){ bar.innerHTML='<span class="dim">No LLM activity yet.</span>'; return; }
+  const fb=llmStats.fallbacks>0?`<div class="llm-stat"><span style="color:var(--yellow)">⚠ ${llmStats.fallbacks} fallback(s)</span></div>`:'';
+  bar.innerHTML=`
+    <div class="llm-stat"><div class="llm-dot ollama"></div>Ollama: ${llmStats.ollama}</div>
+    <div class="llm-stat"><div class="llm-dot openai"></div>OpenAI: ${llmStats.openai}</div>
+    <div class="llm-stat" style="color:var(--text3)">Total: ${total}</div>
+    ${fb}`;
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function appendChat(who,text,cls){
+  chatMsgs.push({who,text,cls});
+  const mk=(container,max)=>{
+    if(max&&container.children.length>=max) container.removeChild(container.firstChild);
+    const d=document.createElement('div'); d.className='cmsg';
+    d.innerHTML=`<span class="cwho ${cls}">${esc(who)}</span><span class="ctxt">${esc(text)}</span>`;
+    container.appendChild(d); container.scrollTop=container.scrollHeight;
+  };
+  mk($('chat-log'));
+  if(chatMsgs.length===1) $('dash-chat').innerHTML='';
+  mk($('dash-chat'),6);
+  if(curPage!=='chat'&&cls!=='system'){ unread++; $('chat-badge').style.display=''; $('chat-badge').textContent=unread>9?'9+':unread; }
+}
+function addSysMsg(msg,type=''){
+  const log=$('chat-log');
+  const d=document.createElement('div'); d.className='cmsg';
+  d.innerHTML=`<span class="cwho system">System</span><span class="ctxt ${type}">${esc(msg)}</span>`;
+  log.appendChild(d); log.scrollTop=log.scrollHeight;
+}
+async function sendChat(){
+  const val=$('chat-input').value.trim(); if(!val) return;
+  $('chat-input').value='';
+  appendChat('You',val,'player');
+  if(isConnected){
+    const r=await api.sendChat(val).catch(e=>({ok:false,error:e.message}));
+    if(r&&!r.ok) addSysMsg('Send failed: '+(r.error||'?'),'err');
+  } else {
+    const s=getS(), cfg=buildCfg();
+    addSysMsg('…thinking','sys');
+    const r=await api.offlineChat(val,{
+      ollamaUrl:cfg.ollama.baseUrl, model:cfg.ollama.model,
+      openAiKey:cfg.openai.apiKey, openAiModel:cfg.openai.model
+    }).catch(e=>({ok:false,error:e.message}));
+    const log=$('chat-log'); if(log.lastChild) log.removeChild(log.lastChild);
+    if(r.ok&&r.reply){
+      const provCls=r.provider==='openai'?'openai':r.provider==='ollama'?'ollama':'bot';
+      appendChat($('tb-cname').textContent||'Bud',r.reply,provCls);
+      $('provider-indicator').textContent=`↑ via ${r.provider||'?'}`;
+    } else {
+      addSysMsg(r.error||'LLM unavailable — is Ollama running?','err');
+      $('provider-indicator').textContent='';
+    }
+  }
+}
+$('chat-send').addEventListener('click',sendChat);
+$('chat-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendChat(); });
+function qcmd(cmd){ if(!isConnected){ addSysMsg('Not connected.','err'); navTo('chat'); return; } navTo('chat'); $('chat-input').value=cmd; sendChat(); }
+function stopWorker(){ if(isConnected) api.sendChat('stop working').catch(()=>{}); }
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+function addLogEntry(e){ logEntries.unshift(e); if(logEntries.length>500) logEntries.length=500; if(curPage==='log') renderLog(); }
+function renderLog(){
+  const el=$('log-list');
+  if(!logEntries.length){ el.innerHTML='<div class="empty">No activity yet.</div>'; return; }
+  el.innerHTML=logEntries.slice(0,200).map(e=>`
+    <div style="display:flex;gap:10px;padding:6px 18px;border-bottom:1px solid var(--border)">
+      <span class="dim2" style="flex-shrink:0;min-width:52px">${timeStr(e.at)}</span>
+      <span style="font-size:12px;color:var(--text2)">${esc(String(e.msg||e).slice(0,200))}</span>
+    </div>`).join('');
+}
+async function refreshLog(){
+  try{ const es=await api.logGetAll(); logEntries.length=0; es.forEach(e=>logEntries.push(e)); renderLog(); }
+  catch(e){ addSysMsg('Log load error: '+e.message,'err'); }
+}
+$('log-refresh').addEventListener('click',refreshLog);
+$('log-clear').addEventListener('click',async()=>{
+  if(!confirm('Clear all activity log entries?')) return;
+  await api.logClear().catch(()=>{}); logEntries.length=0; renderLog();
+});
+
+// ── Memory ────────────────────────────────────────────────────────────────────
+async function refreshMemory(){
+  try{
+    const locs=await api.memoryAll();
+    const stale=locs.filter(l=>l.isStale).length;
+    $('dash-mem').textContent=locs.length;
+    $('dash-memstale').textContent=stale?`${stale} stale`:'all fresh';
+    $('mem-sub').textContent=`${locs.length} location${locs.length===1?'':'s'} · ${stale} stale`;
+    if(!locs.length){ $('mem-empty').style.display=''; $('mem-tbl-wrap').style.display='none'; return; }
+    $('mem-empty').style.display='none'; $('mem-tbl-wrap').style.display='';
+    $('mem-tbody').innerHTML=locs.map(l=>{
+      const fp=l.freshnessPercent||0,badge=l.freshnessBadge||'fresh',c=l.coordinates;
+      return `<tr>
+        <td><strong>${esc(l.name)}</strong></td>
+        <td><span class="tag ${esc(l.type)}">${esc(l.type)}</span></td>
+        <td class="dim">${esc(l.owner||'—')}</td>
+        <td class="mono">${c?`${c.x}, ${c.y}, ${c.z}`:'—'}</td>
+        <td style="min-width:100px"><span class="badge ${badge}">${badge}</span>
+          <div class="fbar"><div class="fbar-fill ${badge}" style="width:${fp}%"></div></div></td>
+        <td class="dim">${esc(l.staleSummary||'—')}</td>
+        <td class="dim">${esc(l.intervalLabel||'—')}</td>
+        <td><span class="badge info">${Math.round((l.confidence||0)*100)}%</span></td>
+        <td style="white-space:nowrap">
+          <button class="btn xs ghost" title="Refresh" onclick="memRefresh('${l.id}')">↻</button>
+          <button class="btn xs dan" title="Delete" onclick="memDel('${l.id}')">✕</button>
+        </td></tr>`;
+    }).join('');
+  }catch(e){ showErr('mem-err','Load failed: '+e.message); }
+}
+window.memDel=async id=>{ await api.memoryDelete(id).catch(()=>{}); refreshMemory(); };
+window.memRefresh=async id=>{ const r=await api.memoryRefresh(id).catch(()=>({ok:false,reason:'?'})); addSysMsg(r.reason||'Refreshed'); refreshMemory(); };
+$('mem-refresh-btn').addEventListener('click',refreshMemory);
+$('mem-add').addEventListener('click',async()=>{
+  const name=$('mem-name').value.trim(),x=parseFloat($('mem-x').value),z=parseFloat($('mem-z').value),y=parseFloat($('mem-y').value);
+  if(!name){ showErr('mem-err','Name required'); return; }
+  if(isNaN(x)||isNaN(z)){ showErr('mem-err','X and Z coordinates required'); return; }
+  if(!isConnected){ showErr('mem-err','Bot must be connected to add memory'); return; }
+  const r=await api.memoryAdd({ name,type:$('mem-type').value,owner:$('mem-owner').value,
+    coordinates:{x,y:isNaN(y)?64:y,z},radius:parseFloat($('mem-r').value)||12,
+    notes:$('mem-notes').value?[$('mem-notes').value]:[] }).catch(e=>({ok:false,error:e.message}));
+  if(r?.ok){ $('mem-name').value=$('mem-x').value=$('mem-y').value=$('mem-z').value=$('mem-notes').value=''; refreshMemory(); }
+  else showErr('mem-err',(r?.error)||'Save failed');
+});
+
+// ── Staleness ─────────────────────────────────────────────────────────────────
+async function refreshStaleness(){
+  try{
+    const [cats,globals]=await Promise.all([api.stalenessGetAll(),api.stalenessGetGlobals()]);
+    $('sg-cache-first').checked=globals.answerFromCacheFirst!==false;
+    $('sg-verify').checked=!!globals.alwaysVerifyBeforeAction;
+    const w=globals.staleWarningThresholdPct??80; $('sg-warn').value=w; $('sg-warn-v').textContent=w+'%';
+    const ct=$('stale-cats'); ct.innerHTML=''; stalePending={};
+    cats.forEach(cat=>{
+      stalePending[cat.key]={intervalMs:cat.intervalMs,unit:cat.unit,autoRefresh:cat.autoRefresh,alwaysVerify:cat.alwaysVerify};
+      const val=msToUnit(cat.intervalMs,cat.unit);
+      const div=document.createElement('div'); div.className='stale-row';
+      div.innerHTML=`<div class="shdr"><span class="slbl">${esc(cat.label)}</span>
+        <span class="badge ${cat.autoRefresh?'ok':''}" id="sb-${cat.key}">${cat.autoRefresh?'auto':'manual'}</span></div>
+        <div class="sdesc">${esc(cat.desc||cat.description||'')}</div>
+        <div class="sctrl">
+          <div class="sint"><label class="lbl" style="margin:0;min-width:55px">Interval:</label>
+            <input type="number" min="1" value="${val}" data-key="${cat.key}"
+              style="width:72px" oninput="spVal('${cat.key}',+this.value)"/>
+            <select data-key="${cat.key}" onchange="spUnit('${cat.key}',this.value)">
+              <option value="seconds" ${cat.unit==='seconds'?'selected':''}>seconds</option>
+              <option value="minutes" ${cat.unit==='minutes'?'selected':''}>minutes</option>
+              <option value="hours" ${cat.unit==='hours'?'selected':''}>hours</option>
+            </select>
+          </div>
+          <label class="tog" title="Auto-refresh"><input type="checkbox" ${cat.autoRefresh?'checked':''} onchange="spTog('${cat.key}','autoRefresh',this.checked)"/><span class="tog-sl"></span></label>
+          <span class="dim">Auto</span>
+          <label class="tog" title="Verify before action"><input type="checkbox" ${cat.alwaysVerify?'checked':''} onchange="spTog('${cat.key}','alwaysVerify',this.checked)"/><span class="tog-sl"></span></label>
+          <span class="dim">Verify</span>
+        </div>`;
+      ct.appendChild(div);
+    });
+  }catch(e){ $('stale-cats').innerHTML=`<div class="dim" style="padding:8px">Error: ${esc(e.message)}</div>`; }
+}
+window.spVal=(k,v)=>{ if(stalePending[k]) stalePending[k].intervalMs=unitToMs(v,stalePending[k].unit); };
+window.spUnit=(k,u)=>{ if(stalePending[k]) stalePending[k].unit=u; };
+window.spTog=(k,f,v)=>{
+  if(stalePending[k]) stalePending[k][f]=v;
+  if(f==='autoRefresh'){ const b=$('sb-'+k); if(b){ b.textContent=v?'auto':'manual'; b.className='badge '+(v?'ok':''); } }
+};
+$('sg-warn').addEventListener('input',()=>$('sg-warn-v').textContent=$('sg-warn').value+'%');
+$('sg-save').addEventListener('click',async()=>{
+  const r=await api.stalenessSetGlobals({ answerFromCacheFirst:$('sg-cache-first').checked,
+    alwaysVerifyBeforeAction:$('sg-verify').checked,staleWarningThresholdPct:+$('sg-warn').value }).catch(e=>({ok:false,error:e.message}));
+  addSysMsg(r?.ok?'Global cache settings saved.':'Save failed: '+(r?.error||'?'));
+});
+$('stale-save').addEventListener('click',async()=>{
+  const bulk={};
+  Object.entries(stalePending).forEach(([k,v])=>{ bulk[k]={intervalMs:v.intervalMs,autoRefresh:v.autoRefresh,alwaysVerify:v.alwaysVerify}; });
+  const r=await api.stalenessSetBulk(bulk).catch(e=>({ok:false,error:e.message}));
+  addSysMsg(r?.ok?'All cache intervals saved.':'Save failed: '+(r?.error||'?'));
+});
+$('stale-reset').addEventListener('click',async()=>{
+  if(!confirm('Reset all cache intervals to defaults?')) return;
+  await api.stalenessReset().catch(()=>{}); refreshStaleness();
+});
+
+// ── Permissions ───────────────────────────────────────────────────────────────
+const ALL_PERMS=[
+  {action:'harvest_crops', label:'Harvest crops',    sub:'Cut and collect mature crops'},
+  {action:'replant_crops', label:'Replant crops',    sub:'Plant seeds after harvesting'},
+  {action:'collect_drops', label:'Collect drops',    sub:'Pick up items from the ground'},
+  {action:'open_chest',    label:'Open chests',      sub:'Read/access storage chests'},
+  {action:'take_items',    label:'Take items',        sub:'Remove items from chests'},
+  {action:'deposit_items', label:'Deposit items',     sub:'Place items into chests'},
+  {action:'sort_storage',  label:'Sort storage',      sub:'Organise chest contents'},
+  {action:'plant_seeds',   label:'Plant seeds',       sub:'Place seeds on tilled soil'},
+  {action:'till_soil',     label:'Till soil',         sub:'Use hoe on dirt/grass'},
+  {action:'use_bonemeal',  label:'Use bonemeal',      sub:'Apply bonemeal to crops/saplings'},
+  {action:'attack_hostile',label:'Attack hostiles',   sub:'Engage hostile mobs'},
+  {action:'place_blocks',  label:'Place blocks',      sub:'Build with blocks'},
+  {action:'break_blocks',  label:'Break blocks',      sub:'Mine/destroy blocks'},
+  {action:'use_furnace',   label:'Use furnaces',      sub:'Smelt items in furnaces'},
+  {action:'use_crafting',  label:'Use crafting',      sub:'Craft items at crafting tables'},
+  {action:'use_redstone',  label:'Use redstone',      sub:'Interact with levers/buttons/redstone'},
+  {action:'use_anvil',     label:'Use anvils',        sub:'Repair/rename items at anvils'},
+  {action:'terraform',     label:'Terraform terrain', sub:'Move/alter large amounts of ground'},
+];
+const grantedSet=new Set();
+function renderPermGrid(){
+  $('perm-grid').innerHTML=ALL_PERMS.map(({action,label,sub})=>{
+    const granted=grantedSet.has(action);
+    return `<label class="perm-item ${granted?'granted':''}" id="pi-${action}">
+      <input type="checkbox" ${granted?'checked':''} onchange="togglePerm('${action}',this.checked)"/>
+      <div><div class="pi-lbl">${esc(label)}</div><div class="pi-sub">${esc(sub)}</div></div>
+    </label>`;
+  }).join('');
+}
+window.togglePerm=async(action,checked)=>{
+  if(checked){ const r=await api.permGrant(action,{}).catch(()=>null); if(r?.ok||r===undefined) grantedSet.add(action); }
+  else{ const r=await api.permRevoke(action).catch(()=>null); if(r?.ok||r===undefined) grantedSet.delete(action); }
+  renderPermGrid(); refreshPermissions();
+};
+$('area-grant').addEventListener('click',async()=>{
+  const action=$('area-action').value, location=$('area-location').value.trim();
+  if(!location){ showErr('perm-state','Location name required for area grant'); return; }
+  const r=await api.permGrant(action,{areaName:location}).catch(e=>({ok:false,error:e.message}));
+  addSysMsg(r?.ok?`Area grant: ${action} inside "${location}".`:'Area grant failed: '+(r?.error||'?'));
+  if(r?.ok) grantedSet.add(action);
+  renderPermGrid(); refreshPermissions();
+});
+async function refreshPermissions(){
+  renderPermGrid();
+  try{
+    const state=await api.permState();
+    if(!state?.trustLevel) return;
+    document.querySelectorAll('.trust-btn').forEach(b=>b.classList.toggle('active',b.dataset.trust===state.trustLevel));
+    const g=(state.granted||[]).map(g=>`<span class="badge ok">${esc(g.action)}</span>`).join(' ');
+    const rv=(state.revoked||[]).map(r=>`<span class="badge stale">${esc(r)}</span>`).join(' ');
+    const pnd=state.pendingCount>0?`<div style="margin-top:6px"><span class="badge warn">${state.pendingCount} pending approval</span></div>`:'';
+    $('perm-state').innerHTML=
+      `<div style="margin-bottom:6px"><strong>Granted:</strong> ${g||'<span class="dim">none</span>'}</div>`+
+      `<div><strong>Revoked:</strong> ${rv||'<span class="dim">none</span>'}</div>${pnd}`;
+  }catch(e){ $('perm-state').textContent='Error: '+e.message; }
+}
+document.querySelectorAll('.trust-btn').forEach(btn=>btn.addEventListener('click',async()=>{
+  const r=await api.permSetTrust(btn.dataset.trust).catch(()=>null);
+  if(r?.ok||r===undefined){ document.querySelectorAll('.trust-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+}));
+
+// ── Resources ─────────────────────────────────────────────────────────────────
+async function loadResourceLimits(){
+  try{
+    const l=await api.resGetLimits();
+    if(l&&typeof l.cpuPercent==='number'){
+      $('res-cpu').value=l.cpuPercent; $('res-cpu-v').textContent=l.cpuPercent+'%';
+      $('res-ram').value=l.ramGb||2;   $('res-ram-v').textContent=(l.ramGb||2)+' GB';
+      $('res-dynamic').checked=l.dynamicMode!==false;
+    }
+  }catch{}
+}
+$('res-cpu').addEventListener('input',()=>$('res-cpu-v').textContent=$('res-cpu').value+'%');
+$('res-ram').addEventListener('input',()=>$('res-ram-v').textContent=$('res-ram').value+' GB');
+$('res-apply').addEventListener('click',async()=>{
+  const r=await api.resSetLimits({ cpuPercent:+$('res-cpu').value,ramGb:+$('res-ram').value,dynamicMode:$('res-dynamic').checked }).catch(e=>({ok:false,error:e.message}));
+  $('res-note').textContent=r?.ok?($('res-dynamic').checked?'Dynamic mode active.':'Manual profile mode.'):'Apply failed: '+(r?.error||'?');
+});
+document.querySelectorAll('.pchip').forEach(c=>c.addEventListener('click',async()=>{
+  document.querySelectorAll('.pchip').forEach(x=>x.classList.remove('active')); c.classList.add('active');
+  await api.resSetProfile(c.dataset.profile).catch(()=>{}); $('tp-profile').textContent='Profile: '+c.dataset.profile;
+}));
+
+// ── AI settings ───────────────────────────────────────────────────────────────
+async function loadAISettings(){
+  try{
+    const cfg=await api.llmGetConfig();
+    if(!cfg) return;
+    if(cfg.ollama){ $('ai-ollama-url').value=cfg.ollama.baseUrl||''; $('ai-ollama-model').value=cfg.ollama.model||''; $('ai-ollama-timeout').value=cfg.ollama.timeoutMs||20000; }
+    if(cfg.openai){ $('ai-openai-key').value=cfg.openai.apiKey==='***set***'?'(already set — type new key to change)':cfg.openai.apiKey||''; $('ai-openai-model').value=cfg.openai.model||''; $('ai-openai-timeout').value=cfg.openai.timeoutMs||15000; }
+    if(cfg.hybrid){ $('ai-dialogue-prov').value=cfg.hybrid.dialogueProvider||'hybrid'; $('ai-intent-prov').value=cfg.hybrid.intentProvider||'ollama'; $('ai-strategy').value=cfg.hybrid.strategy||'quality_routing'; $('ai-hourly').value=cfg.hybrid.openAiHourlyLimit||30; }
+    updateAIBadges(cfg);
+    refreshAIStats();
+  }catch(e){ showErr('ai-err','Config load failed: '+e.message); }
+}
+function updateAIBadges(cfg){
+  const ollamaBadge=$('ollama-badge'); ollamaBadge.textContent='configured'; ollamaBadge.className='badge info';
+  const openAiBadge=$('openai-badge');
+  if(cfg?.openai?.apiKey&&cfg.openai.apiKey!==''){
+    openAiBadge.textContent='configured'; openAiBadge.className='badge ok';
+  } else { openAiBadge.textContent='not configured'; openAiBadge.className='badge'; }
+}
+async function refreshAIStats(){
+  try{
+    const st=await api.llmGetStats();
+    if(!st||(!st.ollama&&!st.openai&&!st.errors)){ $('ai-stats').innerHTML='<span class="dim">No activity yet.</span>'; return; }
+    $('ai-stats').innerHTML=`
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div class="llm-stat"><div class="llm-dot ollama"></div>Ollama calls: <strong>${st.ollama||0}</strong></div>
+        <div class="llm-stat"><div class="llm-dot ${st.openAiAvailable?'openai':'off'}"></div>OpenAI calls: <strong>${st.openai||0}</strong></div>
+        <div class="llm-stat" style="color:var(--yellow)">Fallbacks: <strong>${st.fallbacks||0}</strong></div>
+        <div class="llm-stat" style="color:var(--red)">Errors: <strong>${st.errors||0}</strong></div>
+      </div>
+      <div style="margin-top:8px" class="dim">OpenAI this hour: ${st.openAiCallsThisHour||0} / ${st.hourlyLimit||30} limit &nbsp;·&nbsp;
+        Ollama: <span style="color:${st.ollamaAvailable?'var(--green)':'var(--red)'}">${st.ollamaAvailable?'available':'circuit open'}</span> &nbsp;·&nbsp;
+        OpenAI: <span style="color:${st.openAiAvailable?'var(--green)':'var(--text3)'}">${st.openAiAvailable?'available':'unavailable'}</span>
+      </div>`;
+  }catch{}
+}
+$('ai-save').addEventListener('click',async()=>{
+  const key=$('ai-openai-key').value.trim();
+  const patch={
+    ollama:{ baseUrl:$('ai-ollama-url').value, model:$('ai-ollama-model').value, dialogueModel:$('ai-ollama-model').value, timeoutMs:+$('ai-ollama-timeout').value },
+    openai:{ apiKey: key.includes('(already set')?undefined:key, model:$('ai-openai-model').value, timeoutMs:+$('ai-openai-timeout').value },
+    hybrid:{ dialogueProvider:$('ai-dialogue-prov').value, intentProvider:$('ai-intent-prov').value, strategy:$('ai-strategy').value, openAiHourlyLimit:+$('ai-hourly').value },
+  };
+  if(patch.openai.apiKey===undefined) delete patch.openai.apiKey;
+  const r=await api.llmSetConfig(patch).catch(e=>({ok:false,error:e.message}));
+  if(r?.ok){ addSysMsg('AI settings saved.'); updateAIBadges({openai:{apiKey:key||undefined}}); }
+  else showErr('ai-err','Save failed: '+(r?.error||'?'));
+});
+$('ollama-test').addEventListener('click',async()=>{
+  $('ollama-test').disabled=true; $('ollama-test').textContent='Testing…';
+  const r=await api.llmTestOllama($('ai-ollama-url').value,$('ai-ollama-model').value).catch(e=>({ok:false,error:e.message}));
+  const el=$('ollama-result'); el.textContent=r.ok?`✓ Ollama OK — response: "${r.response}"`:`✗ ${r.error||'Failed'}`;
+  el.className='test-result '+(r.ok?'ok':'fail');
+  $('ollama-badge').textContent=r.ok?'online':'offline'; $('ollama-badge').className='badge '+(r.ok?'ok':'stale');
+  $('ollama-test').disabled=false; $('ollama-test').textContent='Test';
+});
+$('openai-test').addEventListener('click',async()=>{
+  const key=$('ai-openai-key').value.trim();
+  if(!key.startsWith('sk-')){ const el=$('openai-result'); el.textContent='API key must start with sk-'; el.className='test-result fail'; return; }
+  $('openai-test').disabled=true; $('openai-test').textContent='Testing…';
+  const r=await api.llmTestOpenAI(key,$('ai-openai-model').value).catch(e=>({ok:false,error:e.message}));
+  const el=$('openai-result'); el.textContent=r.ok?`✓ OpenAI OK — model: ${r.model}`:`✗ ${r.error||'Failed'}`;
+  el.className='test-result '+(r.ok?'ok':'fail');
+  $('openai-badge').textContent=r.ok?'verified':'error'; $('openai-badge').className='badge '+(r.ok?'ok':'stale');
+  $('openai-test').disabled=false; $('openai-test').textContent='Test';
+});
+
+// ── Character ─────────────────────────────────────────────────────────────────
+async function loadCharacter(){
+  try{
+    const [profile,meta]=await Promise.all([api.characterGet(),api.characterMetadata()]);
+    if(!profile||!meta){ showErr('char-err','Character load failed'); return; }
+    charMeta=meta; applyCharToUI(profile);
+  }catch(e){ showErr('char-err','Error: '+e.message); }
+}
+function applyCharToUI(p){
+  if(!p) return;
+  const name=p.name||'Bud';
+  $('tb-cname').textContent=name; $('portrait-name').textContent=name;
+  $('char-name').value=name; $('char-skin').value=p.skinUsername||name;
+  $('char-mode').value=p.defaultBehaviorMode||'WAITING';
+  $('char-backstory').value=p.backstory||'';
+  $('char-player-rel').value=p.playerRelationship||'';
+  $('char-villager-rel').value=p.villagerRelationship||'';
+  $('char-notes').value=p.additionalNotes||'';
+  const tone=(charMeta?.tones||[]).find(t=>t.value===p.speakingTone);
+  $('portrait-sub').textContent=`${tone?tone.label:'?'} tone · ${p.defaultBehaviorMode||'Waiting'}`;
+  traitValues={...(p.traits||{})};
+  renderTraits(); renderTones(p.speakingTone); updateSkin(p.skinUsername||name);
+}
+function updateSkin(u){
+  const p=$('char-portrait'),tb=$('tb-av');
+  const load=(el,isImg)=>{
+    const img=document.createElement('img');
+    img.onerror=()=>{ el.innerHTML='🧑'; };
+    img.onload=()=>{ el.innerHTML=''; el.appendChild(img); };
+    img.src=`https://crafatar.com/avatars/${encodeURIComponent(u)}?size=80&overlay`;
+  };
+  load(p); load(tb);
+}
+function renderTraits(){
+  if(!charMeta?.traits) return;
+  const g=$('trait-grid'); g.innerHTML='';
+  Object.entries(charMeta.traits).forEach(([key,def])=>{
+    const val=traitValues[key]??5,desc=val<=3?def.low:val>=8?def.high:def.desc;
+    const div=document.createElement('div'); div.className='trow';
+    div.innerHTML=`<div class="thdr"><span class="tlbl">${esc(def.label)}</span><span class="tscore" id="ts-${key}">${val}</span></div>
+      <input type="range" class="tsl" min="1" max="10" value="${val}" data-key="${key}" oninput="onTrait('${key}',+this.value)"/>
+      <div class="tdesc" id="td-${key}">${esc(desc)}</div>`;
+    g.appendChild(div);
+  });
+}
+window.onTrait=(k,v)=>{
+  traitValues[k]=v;
+  const sc=$('ts-'+k); if(sc) sc.textContent=v;
+  const def=charMeta?.traits?.[k]; const de=$('td-'+k);
+  if(de&&def) de.textContent=v<=3?def.low:v>=8?def.high:def.desc;
+};
+function renderTones(active){
+  if(!charMeta?.tones) return;
+  const g=$('tone-grid'); g.innerHTML='';
+  charMeta.tones.forEach(t=>{
+    const div=document.createElement('div'); div.className='tone-chip'+(t.value===active?' active':'');
+    div.innerHTML=`<div class="tc-name">${esc(t.label)}</div><div class="tc-desc">${esc(t.desc)}</div>`;
+    div.addEventListener('click',()=>{
+      document.querySelectorAll('.tone-chip').forEach(c=>c.classList.remove('active')); div.classList.add('active');
+      const tobj=charMeta.tones.find(x=>x.value===t.value);
+      $('portrait-sub').textContent=`${tobj?tobj.label:'?'} tone · ${$('char-mode').value}`;
+    });
+    g.appendChild(div);
+  });
+}
+function getSelTone(){ const a=document.querySelector('.tone-chip.active'); if(!a||!charMeta?.tones) return 'buddy'; const l=a.querySelector('.tc-name')?.textContent; return charMeta.tones.find(t=>t.label===l)?.value||'buddy'; }
+$('char-skin').addEventListener('blur',()=>{ const v=$('char-skin').value.trim(); if(v) updateSkin(v); });
+$('char-mode').addEventListener('change',()=>{
+  const a=document.querySelector('.tone-chip.active'); const tl=a?.querySelector('.tc-name')?.textContent||'?';
+  $('portrait-sub').textContent=`${tl} tone · ${$('char-mode').value}`;
+});
+$('char-save').addEventListener('click',async()=>{
+  const name=$('char-name').value.trim(); if(!name){ showErr('char-err','Name required'); return; }
+  const patch={ name,skinUsername:$('char-skin').value.trim()||name,defaultBehaviorMode:$('char-mode').value,
+    speakingTone:getSelTone(),backstory:$('char-backstory').value,playerRelationship:$('char-player-rel').value,
+    villagerRelationship:$('char-villager-rel').value,additionalNotes:$('char-notes').value,traits:{...traitValues} };
+  const r=await api.characterSet(patch).catch(e=>({ok:false,error:e.message}));
+  if(r?.ok||r===undefined){ $('tb-cname').textContent=name; updateSkin(patch.skinUsername); addSysMsg('Character saved: '+name); }
+  else showErr('char-err','Save failed: '+(r?.error||'?'));
+});
+$('char-reset').addEventListener('click',async()=>{
+  if(!confirm('Reset character to Bud defaults?')) return;
+  await api.characterReset().catch(()=>{}); loadCharacter(); addSysMsg('Character reset to Bud defaults.');
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async function init(){
+  setStatus('disconnected');
+  renderPermGrid();
+  try{ await loadCharacter(); }catch{}
+  try{ const l=await api.resGetLimits(); if(l&&typeof l.cpuPercent==='number'){ $('res-cpu').value=l.cpuPercent; $('res-cpu-v').textContent=l.cpuPercent+'%'; $('res-ram').value=l.ramGb||2; $('res-ram-v').textContent=(l.ramGb||2)+' GB'; $('res-dynamic').checked=l.dynamicMode!==false; } }catch{}
+  try{ const g=await api.stalenessGetGlobals(); if(g){ $('sg-cache-first').checked=g.answerFromCacheFirst!==false; $('sg-verify').checked=!!g.alwaysVerifyBeforeAction; const w=g.staleWarningThresholdPct??80; $('sg-warn').value=w; $('sg-warn-v').textContent=w+'%'; } }catch{}
+  try{ const es=await api.logGetAll(); es.forEach(e=>logEntries.push(e)); }catch{}
+})();
+</script>
+</body>
+</html>

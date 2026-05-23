@@ -771,10 +771,14 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
   </div>
   <div class="card">
     <div class="chdr"><div class="ctitle">Behaviour Tuning</div></div>
-    <div class="row" style="margin-bottom:0">
+    <div class="row">
       <div class="col"><label class="lbl">Follow distance (blocks)</label><input id="s-follow" type="number" value="3" min="1" max="20"/></div>
       <div class="col"><label class="lbl">Loiter radius (blocks)</label><input id="s-loiter" type="number" value="8" min="2" max="64"/></div>
       <div class="col"><label class="lbl">Response delay (ms)</label><input id="s-delay" type="number" value="1500" min="0" max="10000"/></div>
+    </div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">World scan interval (s) <span class="dim2">how often Bud observes surroundings</span></label><input id="s-observe" type="number" value="10" min="5" max="120"/></div>
+      <div class="col"><label class="lbl">Talkative chat interval (s) <span class="dim2">unprompted speech frequency</span></label><input id="s-talkative" type="number" value="45" min="10" max="300"/></div>
     </div>
   </div>
   <div class="card">
@@ -838,7 +842,8 @@ function getS(){ try{ return JSON.parse(localStorage.getItem(SK))||{}; }catch{ r
 function saveS(){
   const s={ host:$('s-host').value,port:+$('s-port').value,version:$('s-ver').value,
     username:$('s-user').value,followDistance:+$('s-follow').value,
-    loiterRadius:+$('s-loiter').value,responseDelay:+$('s-delay').value };
+    loiterRadius:+$('s-loiter').value,responseDelay:+$('s-delay').value,
+    observeIntervalMs:+$('s-observe').value*1000,talkativeIntervalMs:+$('s-talkative').value*1000 };
   if(!s.host){ showErr('s-err','Host is required'); return false; }
   if(!s.port||s.port<1||s.port>65535){ showErr('s-err','Invalid port'); return false; }
   localStorage.setItem(SK,JSON.stringify(s)); return s;
@@ -848,9 +853,11 @@ function applyS(s){
   if(s.port)           $('s-port').value  =s.port;
   if(s.version)        $('s-ver').value   =s.version;
   if(s.username!=null) $('s-user').value  =s.username;
-  if(s.followDistance) $('s-follow').value=s.followDistance;
-  if(s.loiterRadius)   $('s-loiter').value=s.loiterRadius;
-  if(s.responseDelay)  $('s-delay').value =s.responseDelay;
+  if(s.followDistance)      $('s-follow').value   =s.followDistance;
+  if(s.loiterRadius)        $('s-loiter').value   =s.loiterRadius;
+  if(s.responseDelay)       $('s-delay').value    =s.responseDelay;
+  if(s.observeIntervalMs)   $('s-observe').value  =s.observeIntervalMs/1000;
+  if(s.talkativeIntervalMs) $('s-talkative').value=s.talkativeIntervalMs/1000;
 }
 $('s-save').addEventListener('click',()=>{ const ok=saveS(); if(ok) addSysMsg('Settings saved.'); });
 $('s-opendata').addEventListener('click',()=>api.openDataFolder());
@@ -861,7 +868,7 @@ function buildCfg(){
   const s=getS();
   return {
     bot:{ host:s.host||'localhost',port:s.port||25565,username:s.username||'',version:s.version||'1.21.1',auth:'offline'},
-    companion:{ observeIntervalMs:10000,talkativeIntervalMs:45000,
+    companion:{ observeIntervalMs:s.observeIntervalMs||10000,talkativeIntervalMs:s.talkativeIntervalMs||45000,
       followDistance:s.followDistance||3,loiterRadius:s.loiterRadius||8,responseDelayMs:s.responseDelay||1500},
     ollama:{ baseUrl:$('ai-ollama-url')?.value||'http://localhost:11434',
              model:$('ai-ollama-model')?.value||'llama3.2',

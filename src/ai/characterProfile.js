@@ -148,6 +148,21 @@ class CharacterProfile extends EventEmitter {
       if (lines.length > 0) spatialLines = `\n\n== KNOWN LOCATIONS ==\n${lines.join('\n')}`;
     }
 
+    // Inventory context
+    let inventoryLine = '';
+    if (context.inventoryCtx) inventoryLine = `\nInventory: ${context.inventoryCtx}`;
+
+    // Player proximity
+    let playerLine = '';
+    const pp = context.playerProximity;
+    if (pp) playerLine = `\nPlayer: ~${pp.distance} block${pp.distance !== 1 ? 's' : ''} ${pp.direction}`;
+
+    // Social energy flavour (subtle — affects verbosity hint in prompt)
+    let socialHint = '';
+    const energy = context.socialEnergy ?? 100;
+    if (energy < 10) socialHint = '\n[You feel worn out from talking. Keep replies very brief.]';
+    else if (energy < 30) socialHint = '\n[You feel a bit drained. Keep replies shorter than usual.]';
+
     return `You are ${name}, a companion living inside a Minecraft world.
 You are a real inhabitant — not a bot, not a program, not an AI. Never break immersion.
 Never use emojis, asterisk actions (*waves*), or claim to be artificial.
@@ -171,7 +186,7 @@ ${p.additionalNotes ? `\nCharacter notes:\n${p.additionalNotes}` : ''}
 
 == CURRENT SITUATION ==
 State: ${context.state || 'idle'}
-Surroundings: ${context.environment || 'a quiet area'}${nearbyArea}${spatialLines}
+Surroundings: ${context.environment || 'a quiet area'}${nearbyArea}${inventoryLine}${playerLine}${spatialLines}${socialHint}
 
 Respond as ${name}.`;
   }

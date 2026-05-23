@@ -150,6 +150,7 @@ ipcMain.handle('bot:connect', (_, cfg) => {
     bot.on('worker:progress',e=> fwd('bot:worker',      { event: 'progress', ...e }));
     bot.on('worker:stop',   e => fwd('bot:worker',      { event: 'stop', ...e }));
     bot.on('worker:threat', e => fwd('bot:worker',      { event: 'threat', ...e }));
+    bot.on('social:changed',e => fwd('bot:social',      e));
     bot.on('bgevent',       e => fwd('bot:bgevent',     e));
     bot.on('log',           l => appendLog(l));
     bot.on('error',         e => { appendLog({ type:'error', msg: String(e) }); fwd('bot:error', e); });
@@ -247,12 +248,14 @@ ipcMain.handle('llm:getConfig', () => {
       src = _deepMerge(defaults, saved);
     }
     return {
-      ollama:    src.ollama,
-      openai:    { ...src.openai,  apiKey: src.openai?.apiKey  ? '***set***' : '' },
-      claude:    { ...src.claude,  apiKey: src.claude?.apiKey  ? '***set***' : '' },
-      hybrid:    src.hybrid,
-      routing:   src.routing,
-      monologue: src.monologue,
+      ollama:        src.ollama,
+      openai:        { ...src.openai, apiKey: src.openai?.apiKey ? '***set***' : '' },
+      claude:        { ...src.claude, apiKey: src.claude?.apiKey ? '***set***' : '' },
+      hybrid:        src.hybrid,
+      routing:       src.routing,
+      monologue:     src.monologue,
+      conversation:  src.conversation,
+      planning:      src.planning,
     };
   } catch (err) { return {}; }
 });
@@ -350,6 +353,22 @@ ipcMain.handle('llm:testClaude', async (_, apiKey, model) => {
 
 ipcMain.handle('bgevents:getAll', () => bot?.getBgEvents() ?? []);
 ipcMain.handle('bgevents:clear',  () => { bot?.clearBgEvents(); return { ok: true }; });
+
+// ── Social energy ─────────────────────────────────────────────────────────────
+
+ipcMain.handle('social:get', () => {
+  const defaults = { enabled: true, drainPerExchange: 8, chargePerMinute: 5 };
+  const saved    = loadPrefs().socialConfig || {};
+  return { level: bot?.social?.level ?? 100, config: { ...defaults, ...saved } };
+});
+
+ipcMain.handle('social:set', (_, p) => {
+  if (!p) return { ok: false };
+  if (bot) bot.updateSocialConfig(p);
+  const prev = loadPrefs().socialConfig || {};
+  savePrefs({ socialConfig: { ...prev, ...p } });
+  return { ok: true };
+});
 
 // ── Character ─────────────────────────────────────────────────────────────────
 

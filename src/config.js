@@ -12,10 +12,11 @@ const defaults = {
   },
 
   ollama: {
-    baseUrl:      process.env.OLLAMA_URL       || 'http://localhost:11434',
-    model:        process.env.OLLAMA_MODEL      || 'llama3.2',
-    dialogueModel:process.env.OLLAMA_MODEL      || 'llama3.2',
-    timeoutMs:    parseInt(process.env.OLLAMA_TIMEOUT_MS, 10) || 20_000,
+    baseUrl:       process.env.OLLAMA_URL          || 'http://localhost:11434',
+    model:         process.env.OLLAMA_MODEL         || 'llama3.2',
+    quickModel:    process.env.OLLAMA_QUICK_MODEL   || '',  // tier-1 small model (e.g. llama3.2:1b)
+    dialogueModel: process.env.OLLAMA_DIALOGUE_MODEL|| '',  // tier-2 medium model (e.g. llama3.1:8b)
+    timeoutMs:     parseInt(process.env.OLLAMA_TIMEOUT_MS, 10) || 20_000,
   },
 
   openai: {
@@ -67,6 +68,25 @@ const defaults = {
     intervalMs:  60_000,
     neuroticism: 5,      // 1-10: how often the monologue fires per tick
     provider:    'ollama',
+  },
+
+  // Conversation memory buffer
+  conversation: {
+    maxTurns: 20,  // rolling history size (4-40); summarised when exceeded
+  },
+
+  // Plan executor — controls auto-execution of deep-tier multi-step plans
+  planning: {
+    autoExecute:          false, // auto-run plan steps when detected
+    requireConfirmation:  true,  // ask player before each step (if autoExecute)
+    maxSteps:             5,     // safety cap on auto-executed steps
+  },
+
+  // Social battery — governs proactive speech and conversation willingness
+  social: {
+    enabled:          true,
+    drainPerExchange: 8,   // points lost per direct chat exchange (1-30)
+    chargePerMinute:  5,   // points gained per minute of quiet (1-30)
   },
 
   companion: {

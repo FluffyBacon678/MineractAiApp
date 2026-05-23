@@ -35,7 +35,7 @@ const MOCK_SCRIPT = `
     permissions:{ trustLevel:'COMPANION', granted:[], revoked:[], pendingCount:0 },
     limits:{ cpuPercent:25, ramGb:2, dynamicMode:true },
     metrics:{ cpu:14, ram:5.8, ramPct:36, totalRam:16, profile:'normal' },
-    llmConfig:{ ollama:{baseUrl:'http://localhost:11434',model:'llama3.2',timeoutMs:20000}, openai:{apiKey:'',model:'gpt-4o-mini',timeoutMs:15000}, hybrid:{dialogueProvider:'hybrid',intentProvider:'ollama',strategy:'quality_routing',openAiHourlyLimit:30} },
+    llmConfig:{ ollama:{baseUrl:'http://localhost:11434',quickModel:'llama3.2:1b',model:'llama3.2',dialogueModel:'llama3.2',timeoutMs:20000}, openai:{apiKey:'',model:'gpt-4o-mini',timeoutMs:15000}, hybrid:{strategy:'quality_routing',openAiHourlyLimit:30}, conversation:{maxTurns:20}, planning:{autoExecute:false,requireConfirmation:true,maxSteps:5} },
     llmStats:{ ollama:12, openai:3, fallbacks:1, errors:0, openAiCallsThisHour:3, hourlyLimit:30, openAiAvailable:true, ollamaAvailable:true },
     log:[
       {at:Date.now()-5000,  msg:'Connected as Bud'},
@@ -52,11 +52,15 @@ const MOCK_SCRIPT = `
       {id:6, at:Date.now()-60000,  cat:'state',      level:'info',  msg:'Task started: Farming'},
       {id:7, at:Date.now()-45000,  cat:'state',      level:'warn',  msg:'Threat detected near task area', detail:null},
       {id:8, at:Date.now()-30000,  cat:'state',      level:'ok',    msg:'Task finished: Farming', detail:null},
-      {id:9, at:Date.now()-15000,  cat:'llm',        level:'error', msg:'Ollama is not reachable', detail:'Check that Ollama is running on localhost:11434'},
+      {id:9, at:Date.now()-15000,  cat:'llm',        level:'info',  msg:'Dialogue [quick] → ollama:llama3.2:1b', detail:'65 token budget'},
+      {id:10,at:Date.now()-12000,  cat:'llm',        level:'info',  msg:'Dialogue [standard] → ollama:llama3.2', detail:'150 token budget'},
+      {id:11,at:Date.now()-8000,   cat:'llm',        level:'info',  msg:'Dialogue [deep] → claude:claude-haiku-4-5-20251001', detail:'500 token budget'},
+      {id:12,at:Date.now()-5000,   cat:'llm',        level:'error', msg:'Ollama is not reachable', detail:'Check that Ollama is running on localhost:11434'},
       {id:10,at:Date.now()-5000,   cat:'connection', level:'warn',  msg:'Disconnected', detail:'connection closed'},
       {id:11,at:Date.now()-4000,   cat:'connection', level:'info',  msg:'Will reconnect in 8s', detail:null},
     ],
     staleness:null,
+    socialState:{ level:78, config:{ enabled:true, drainPerExchange:8, chargePerMinute:5 } },
     prefs:{ width:1200, height:820 },
   };
 
@@ -139,6 +143,9 @@ const MOCK_SCRIPT = `
 
     bgEventsGetAll: () => Promise.resolve([..._store.bgEvents].reverse()),
     bgEventsClear:  () => { _store.bgEvents=[]; return Promise.resolve({ok:true}); },
+
+    socialGet: () => Promise.resolve({..._store.socialState}),
+    socialSet: (p) => { Object.assign(_store.socialState.config, p); return Promise.resolve({ok:true}); },
 
     logGetAll: ()  => Promise.resolve([..._store.log].reverse()),
     logClear:  ()  => { _store.log=[]; return Promise.resolve({ok:true}); },

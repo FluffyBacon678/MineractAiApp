@@ -316,6 +316,19 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
 .task-row{display:flex;flex-direction:column;gap:3px;padding:5px 0}
 .task-sel{width:100%;font-size:11.5px;padding:4px 7px}
 
+/* ── Social battery bar ── */
+.social-bar-outer{height:13px;background:var(--bg3);border-radius:7px;overflow:hidden;flex:1}
+.social-bar-fill{height:100%;border-radius:7px;transition:width .9s ease,background .9s ease;width:100%}
+.social-bar-row{display:flex;align-items:center;gap:10px;margin-top:4px}
+.social-bar-label{font-size:12px;color:var(--text2);white-space:nowrap}
+
+/* ── Tier chip in System Log ── */
+.tier-chip{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;
+  margin-right:5px;text-transform:uppercase;letter-spacing:.03em}
+.tier-chip.quick{background:#1a2535;color:#7ab}
+.tier-chip.standard{background:#1a2820;color:#7c4}
+.tier-chip.deep{background:#2a1830;color:#c8f}
+
 /* ── System Log (Background Knowledge) ── */
 .bg-filter-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
 .bg-filter{padding:4px 11px;border-radius:12px;font-size:11.5px;font-weight:600;
@@ -507,6 +520,18 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
     <div class="trait-grid" id="trait-grid"></div>
   </div>
   <div class="card">
+    <div class="chdr">
+      <div class="ctitle">Social Battery</div>
+      <span class="dim">How eager to chat right now — drains during conversation, recharges in quiet</span>
+    </div>
+    <div class="social-bar-row">
+      <div class="social-bar-outer"><div class="social-bar-fill" id="social-bar-fill"></div></div>
+      <div class="social-bar-label"><span id="social-energy-pct">100</span>/100</div>
+      <div class="dim2" id="social-energy-mood" style="font-size:12px">eager to chat</div>
+    </div>
+    <div class="dim" style="margin-top:8px">Drain &amp; recharge rates in Settings. At 0% Bud only answers direct questions.</div>
+  </div>
+  <div class="card">
     <div class="chdr"><div class="ctitle">Backstory</div><span class="dim">Injected verbatim into LLM system prompt</span></div>
     <textarea id="char-backstory" rows="7" placeholder="Who is this companion? Where did they come from?"></textarea>
   </div>
@@ -537,10 +562,11 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
     </div>
     <div class="row">
       <div class="col"><label class="lbl">Ollama URL</label><input id="ai-ollama-url" value="http://localhost:11434" placeholder="http://localhost:11434"/></div>
-      <div class="col"><label class="lbl">Model</label><input id="ai-ollama-model" value="llama3.2" placeholder="llama3.2 · mistral · qwen2.5:3b · llama3.1:8b"/></div>
+      <div class="col"><label class="lbl">Quick model <span class="dim2">Tier 1 — greetings, acks (1b–3b)</span></label><input id="ai-ollama-quick" placeholder="llama3.2:1b · qwen2.5:1.5b · gemma2:2b (blank = same as dialogue)"/></div>
+      <div class="col"><label class="lbl">Dialogue model <span class="dim2">Tier 2 — general chat (7b–8b)</span></label><input id="ai-ollama-model" value="llama3.2" placeholder="llama3.2 · llama3.1:8b · qwen2.5:7b"/></div>
     </div>
     <div class="test-result" id="ollama-result"></div>
-    <div class="dim" style="margin-top:6px">Laptop: use <code>llama3.2:1b</code> or <code>qwen2.5:3b</code> &nbsp;·&nbsp; Desktop: <code>llama3.1:8b</code> or larger &nbsp;·&nbsp; Remote: <code>OLLAMA_HOST=0.0.0.0 ollama serve</code></div>
+    <div class="dim" style="margin-top:6px">Tier 1 quick model handles simple replies. Tier 2 dialogue model handles conversation. Tier 3 (planning) always goes to cloud first.</div>
   </div>
 
   <!-- OpenAI -->
@@ -874,6 +900,57 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
     <div class="dim" style="margin-top:8px">When enabled, Bud quietly reflects on his current state and task. If something is wrong he emits an ADJUST directive logged in Activity Log. Neuroticism 10 = fires almost every tick; 1 = rarely.</div>
   </div>
 
+  <!-- Conversation memory -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Conversation Memory</div><span class="dim2">How many exchanges Bud remembers mid-conversation</span></div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">Buffer size (turns) <span class="dim2">older turns are auto-summarised</span></label>
+        <input id="s-conv-turns" type="range" min="4" max="40" value="20" style="width:100%"/>
+        <div class="dim2" id="s-conv-turns-val" style="text-align:right">20 turns</div>
+      </div>
+    </div>
+    <div class="dim" style="margin-top:8px">Each "turn" is one player message + one Bud reply. Quick tier gets 6 turns, Standard gets 12, Deep gets all. When the buffer is full, older turns are summarised into a single line so context is never completely lost.</div>
+  </div>
+
+  <!-- Planning execution -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Planning &amp; Auto-Execution</div><span class="dim2">What happens when Bud generates a multi-step plan</span></div>
+    <div class="row">
+      <div class="col2" style="display:flex;align-items:center;gap:10px;padding-top:6px">
+        <label class="toggle-wrap"><input type="checkbox" id="s-plan-auto"><span class="toggle"></span></label>
+        <span class="lbl" style="margin:0">Auto-execute plan steps</span>
+      </div>
+      <div class="col2" style="display:flex;align-items:center;gap:10px;padding-top:6px">
+        <label class="toggle-wrap"><input type="checkbox" id="s-plan-confirm" checked><span class="toggle"></span></label>
+        <span class="lbl" style="margin:0">Confirm each step in chat</span>
+      </div>
+      <div class="col2"><label class="lbl">Max steps (1–10)</label>
+        <input id="s-plan-maxsteps" type="number" value="5" min="1" max="10"/>
+      </div>
+    </div>
+    <div class="dim" style="margin-top:8px">When Bud produces a numbered plan (e.g. 1. Go to farm 2. Harvest), auto-execute will run each step in sequence. Confirm mode asks "ok?" in chat before each step. You can also just let Bud say the plan without executing.</div>
+  </div>
+
+  <!-- Social energy settings -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Social Energy</div><span class="dim2">Controls how Bud's social battery charges and drains</span></div>
+    <div class="row">
+      <div class="col2" style="display:flex;align-items:center;gap:10px;padding-top:6px">
+        <label class="toggle-wrap"><input type="checkbox" id="s-social-enabled" checked><span class="toggle"></span></label>
+        <span class="lbl" style="margin:0">Enable social battery</span>
+      </div>
+      <div class="col"><label class="lbl">Drain per exchange (1–20) <span class="dim2">points lost per conversation</span></label>
+        <input id="s-social-drain" type="range" min="1" max="20" value="8" style="width:100%"/>
+        <div class="dim2" id="s-social-drain-val" style="text-align:right">8 pts / exchange</div>
+      </div>
+      <div class="col"><label class="lbl">Charge per minute (1–20) <span class="dim2">points gained while quiet</span></label>
+        <input id="s-social-charge" type="range" min="1" max="20" value="5" style="width:100%"/>
+        <div class="dim2" id="s-social-charge-val" style="text-align:right">5 pts / min</div>
+      </div>
+    </div>
+    <div class="dim" style="margin-top:8px">At 100% Bud initiates chat freely. Below 30% he drops a model tier (shorter answers). Below 10% only quick-tier responses. Recharges after 30 s of quiet.</div>
+  </div>
+
   <div class="card">
     <div class="chdr"><div class="ctitle">Data Files</div></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -987,6 +1064,59 @@ $('s-mono-neuro').addEventListener('input',()=>{
   $('s-mono-neuro-val').textContent=$('s-mono-neuro').value+' / 10';
 });
 
+// ── Social battery UI ─────────────────────────────────────────────────────────
+function updateSocialBar(level){
+  const fill=$('social-bar-fill'), pct=$('social-energy-pct'), mood=$('social-energy-mood');
+  if(!fill) return;
+  const lvl=Math.max(0,Math.min(100,Math.round(level)));
+  fill.style.width=lvl+'%';
+  fill.style.background=lvl>=70?'#4caf50':lvl>=30?'#ff9800':'#f44336';
+  if(pct) pct.textContent=lvl;
+  if(mood) mood.textContent=lvl>=80?'eager to chat':lvl>=50?'sociable':lvl>=20?'a bit drained':'worn out — keeping quiet';
+}
+
+async function loadSocialSettings(){
+  try{
+    const {level,config}=await api.socialGet();
+    updateSocialBar(level);
+    if(config){
+      $('s-social-enabled').checked=config.enabled!==false;
+      $('s-social-drain').value=config.drainPerExchange||8;
+      $('s-social-drain-val').textContent=(config.drainPerExchange||8)+' pts / exchange';
+      $('s-social-charge').value=config.chargePerMinute||5;
+      $('s-social-charge-val').textContent=(config.chargePerMinute||5)+' pts / min';
+    }
+  }catch{}
+}
+
+async function loadConversationSettings(){
+  try{
+    const cfg=await api.llmGetConfig();
+    const c=cfg?.conversation||{};
+    const p=cfg?.planning||{};
+    const turns=c.maxTurns||20;
+    $('s-conv-turns').value=turns;
+    $('s-conv-turns-val').textContent=turns+' turns';
+    $('s-plan-auto').checked=!!p.autoExecute;
+    $('s-plan-confirm').checked=p.requireConfirmation!==false;
+    $('s-plan-maxsteps').value=p.maxSteps||5;
+  }catch{}
+}
+
+// Slider live-update labels
+$('s-conv-turns').addEventListener('input',()=>{
+  $('s-conv-turns-val').textContent=$('s-conv-turns').value+' turns';
+});
+$('s-social-drain').addEventListener('input',()=>{
+  $('s-social-drain-val').textContent=$('s-social-drain').value+' pts / exchange';
+});
+$('s-social-charge').addEventListener('input',()=>{
+  $('s-social-charge-val').textContent=$('s-social-charge').value+' pts / min';
+});
+
+// Live social battery from bot events
+api.on('bot:social',({level})=>updateSocialBar(level));
+
 // Load monologue settings from backend config
 async function loadMonologueSettings(){
   try{
@@ -1004,21 +1134,36 @@ async function loadMonologueSettings(){
 $('s-save').addEventListener('click', async ()=>{
   const ok=saveS();
   if(!ok) return;
-  // Also persist monologue config via llmSetConfig
-  const monoPatch={
+  // Persist monologue + conversation + planning config
+  await api.llmSetConfig({
     monologue:{
       enabled:    $('s-mono-enabled').checked,
       intervalMs: +$('s-mono-interval').value * 1000,
       neuroticism:+$('s-mono-neuro').value,
       provider:   $('s-mono-provider').value,
-    }
-  };
-  await api.llmSetConfig(monoPatch).catch(()=>{});
+    },
+    conversation:{
+      maxTurns: +$('s-conv-turns').value,
+    },
+    planning:{
+      autoExecute:         $('s-plan-auto').checked,
+      requireConfirmation: $('s-plan-confirm').checked,
+      maxSteps:            +$('s-plan-maxsteps').value,
+    },
+  }).catch(()=>{});
+  // Social energy persisted separately (runtime state, not LLM config)
+  await api.socialSet({
+    enabled:          $('s-social-enabled').checked,
+    drainPerExchange: +$('s-social-drain').value,
+    chargePerMinute:  +$('s-social-charge').value,
+  }).catch(()=>{});
   addSysMsg('Settings saved.');
 });
 $('s-opendata').addEventListener('click',()=>api.openDataFolder());
 applyS(getS());
 loadMonologueSettings();
+loadConversationSettings();
+loadSocialSettings();
 
 // ── Build connect config ──────────────────────────────────────────────────────
 function buildCfg(){
@@ -1032,6 +1177,7 @@ function buildCfg(){
     companion:{ observeIntervalMs:s.observeIntervalMs||10000,talkativeIntervalMs:s.talkativeIntervalMs||45000,
       followDistance:s.followDistance||3,loiterRadius:s.loiterRadius||8,responseDelayMs:s.responseDelay||1500},
     ollama:{ baseUrl:$('ai-ollama-url')?.value||'http://localhost:11434',
+             quickModel:$('ai-ollama-quick')?.value||'',
              model:$('ai-ollama-model')?.value||'llama3.2',
              dialogueModel:$('ai-ollama-model')?.value||'llama3.2',
              timeoutMs:+($('ai-ollama-timeout')?.value||20000)},
@@ -1068,7 +1214,7 @@ function navTo(page){
   if(page==='character')   loadCharacter();
   if(page==='ai')          loadAISettings();
   if(page==='resources')   loadResourceLimits();
-  if(page==='settings')    loadMonologueSettings();
+  if(page==='settings')    { loadMonologueSettings(); loadConversationSettings(); loadSocialSettings(); }
   if(page==='syslog'){
     bgErrorCount=0;
     const badge=$('syslog-badge');
@@ -1245,13 +1391,18 @@ function renderSysLog() {
     return;
   }
   el.innerHTML = filtered.map(ev => {
-    const icon = BG_ICONS[ev.cat] || '•';
+    const icon   = BG_ICONS[ev.cat] || '•';
     const detail = ev.detail ? `<div class="bg-ev-detail">${esc(ev.detail)}</div>` : '';
+    let tierChip = '';
+    if (ev.cat === 'llm') {
+      const tm = (ev.msg||'').match(/\[(quick|standard|deep)\]/i);
+      if (tm) tierChip = `<span class="tier-chip ${tm[1].toLowerCase()}">${tm[1]}</span>`;
+    }
     return `<div class="bg-ev ${esc(ev.level)}">
       <span class="bg-ev-icon">${icon}</span>
       <div class="bg-ev-body">
         <div class="bg-ev-msg">
-          <span class="bg-cat-chip ${esc(ev.cat)}">${esc(ev.cat)}</span>${esc(ev.msg)}
+          <span class="bg-cat-chip ${esc(ev.cat)}">${esc(ev.cat)}</span>${tierChip}${esc(ev.msg)}
         </div>${detail}
       </div>
       <span class="bg-ev-ts">${timeStr(ev.at)}</span>
@@ -1495,7 +1646,8 @@ async function loadAISettings(){
     if(!cfg) return;
     if(cfg.ollama){
       $('ai-ollama-url').value     = cfg.ollama.baseUrl||'http://localhost:11434';
-      $('ai-ollama-model').value   = cfg.ollama.model||'llama3.2';
+      $('ai-ollama-quick').value   = cfg.ollama.quickModel||'';
+      $('ai-ollama-model').value   = cfg.ollama.dialogueModel||cfg.ollama.model||'llama3.2';
       $('ai-ollama-timeout').value = cfg.ollama.timeoutMs||20000;
     }
     if(cfg.openai){
@@ -1558,8 +1710,11 @@ $('ai-save').addEventListener('click',async()=>{
   const taskMap={};
   document.querySelectorAll('.task-sel').forEach(sel=>{ taskMap[sel.dataset.task]=sel.value; });
   const patch={
-    ollama:{ baseUrl:$('ai-ollama-url').value, model:$('ai-ollama-model').value,
-             dialogueModel:$('ai-ollama-model').value, timeoutMs:+$('ai-ollama-timeout').value },
+    ollama:{ baseUrl:$('ai-ollama-url').value,
+             quickModel:$('ai-ollama-quick').value||'',
+             model:$('ai-ollama-model').value,
+             dialogueModel:$('ai-ollama-model').value,
+             timeoutMs:+$('ai-ollama-timeout').value },
     openai:{ apiKey:openaiKey.includes('(already set')?undefined:openaiKey,
              model:$('ai-openai-model').value, timeoutMs:+$('ai-openai-timeout').value },
     claude:{ apiKey:claudeKey.includes('(already set')?undefined:claudeKey,

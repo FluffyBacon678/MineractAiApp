@@ -11,6 +11,9 @@ const LLMRouter               = require('./ai/llmRouter');
 const IntentParser            = require('./ai/intentParser');
 const Dialogue                = require('./ai/dialogue');
 const Monologue               = require('./ai/monologue');
+const SocialEnergy            = require('./ai/socialEnergy');
+const ConversationBuffer      = require('./ai/conversationBuffer');
+const PlanExecutor            = require('./ai/planExecutor');
 const { CharacterProfile }    = require('./ai/characterProfile');
 const { StalenessConfig }     = require('./memory/stalenessConfig');
 const WorldMemory             = require('./memory/worldMemory');
@@ -46,6 +49,15 @@ class BotManager extends EventEmitter {
     this.memory      = new WorldMemory(this.staleness, this);
     this.permissions = new PermissionManager(this.memory);
     this.resources   = new ResourceManager(this.cfg.resources || {});
+    this.social      = new SocialEnergy(this.cfg.social || {});
+    this.social.on('social:changed', e => this.emit('social:changed', e));
+
+    // Conversation continuity — persists across reconnects
+    this.convBuffer  = new ConversationBuffer(this.cfg.conversation?.maxTurns ?? 20);
+
+    // Plan executor — executes deep-tier multi-step plans
+    this.planExec    = new PlanExecutor(this.cfg.planning || {});
+    this._wirePlanExecutor();
 
     // ── Shared LLM router — passed into all AI components ────────────────
     this.router = new LLMRouter(this.cfg);
@@ -232,6 +244,21 @@ class BotManager extends EventEmitter {
       Object.assign(this.cfg.monologue, patch.monologue);
       this.monologue?.updateConfig(this.cfg);
     }
+    if (patch.social) {
+      this.cfg.social = this.cfg.social || {};
+      Object.assign(this.cfg.social, patch.social);
+      this.social?.updateConfig(this.cfg.social);
+    }
+    if (patch.conversation) {
+      this.cfg.conversation = this.cfg.conversation || {};
+      Object.assign(this.cfg.conversation, patch.conversation);
+      this.convBuffer?.updateMaxTurns(this.cfg.conversation.maxTurns ?? 20);
+    }
+    if (patch.planning) {
+      this.cfg.planning = this.cfg.planning || {};
+      Object.assign(this.cfg.planning, patch.planning);
+      this.planExec?.updateConfig(this.cfg.planning);
+    }
     this.cfg.openai.enabled = !!(this.cfg.openai?.apiKey);
     this.cfg.claude.enabled = !!(this.cfg.claude?.apiKey);
     this.router.updateConfig(this.cfg);
@@ -257,10 +284,14 @@ class BotManager extends EventEmitter {
     };
   }
 
+  getSocialState()        { return { level: this.social?.level ?? 100, config: this.social?.getConfig() ?? {} }; }
+  updateSocialConfig(cfg) { this.social?.updateConfig(cfg); }
+
   destroy() {
     this.disconnect();
     this.memory.destroy();
     this.resources.destroy();
+    this.social?.destroy();
   }
 
   // ── Spawn ─────────────────────────────────────────────────────────────────
@@ -272,7 +303,13 @@ class BotManager extends EventEmitter {
     // All AI components share the same router instance
     this.intentParser = new IntentParser(this.cfg, this.router);
     this.memoryParser = new MemoryParser(this.cfg, this.router);
-    this.dialogue     = new Dialogue(this.cfg, this.character, this.router);
+    this.dialogue     = new Dialogue(this.cfg, this.character, this.router, this.convBuffer);
+    this.dialogue.on('dialogue:used', ({ tier, provider, model, tokens }) => {
+      this._bgEvent('llm', 'info',
+        `Dialogue [${tier}] → ${provider}:${model}`,
+        `${tokens} token budget`
+      );
+    });
     this.observer     = new Observer(this.bot, this.cfg, this.memory);  // pass memory for workstation auto-detection
     this.stateMachine = new StateMachine(this.bot, this.cfg);
     this.workers      = new WorkerManager(this.bot, this.cfg, this.memory, this.permissions);
@@ -320,16 +357,18 @@ class BotManager extends EventEmitter {
     }));
 
     this._bgEvent('connection', 'ok', `Joined world as ${this.bot.username}`);
+    this.emit('social:changed', { level: this.social?.level ?? 100 });
     this.emit('log', `Connected as ${this.bot.username}`);
 
     // First greeting with slight delay — use OpenAI if available (important moment)
     setTimeout(async () => {
       if (!this.connected || !this.bot) return;
       const name = this.character.getName();
-      const greeting = await this.dialogue.generate(
+      const { text: greeting } = await this.dialogue.generate(
         `You just joined the player's Minecraft world for the first time today. Give a short, natural greeting as ${name}.`,
-        { state: 'joining', isImportant: true, isDirectAddress: false }
-      ).catch(() => null);
+        { state: 'joining', isImportant: true, isDirectAddress: false },
+        null, 'quick'   // greeting is always quick tier
+      ).catch(() => ({ text: null }));
       this._safeChat(greeting || `*${name} has arrived*`);
       this._greetedAt = Date.now();
     }, 2500);
@@ -355,6 +394,10 @@ class BotManager extends EventEmitter {
     // Detect message characteristics for quality routing
     const isDirectAddress = this._isAddressed(message, username);
     const isQuestion      = message.trim().endsWith('?');
+
+    // Social battery drain + player-active signal
+    this.social.onInteraction(isDirectAddress);
+    this.resources.setPlayerActive(true);
 
     // Parallel classification
     const [intentResult, memIntentResult] = await Promise.allSettled([
@@ -428,19 +471,31 @@ class BotManager extends EventEmitter {
       case 'FOLLOW':
         this.workers?.stop().then(() => this.stateMachine?.setState('FOLLOWING', { targetUsername: username }));
         this._setStatus(`following ${username}`);
-        if (shouldRespond) this._safeChat('On my way.');
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} asked you to follow them. Say you will in one very short phrase.`, ctx);
+          this._safeChat(ackText || 'On my way.');
+        }
         break;
 
       case 'WAIT':
         this.workers?.stop().then(() => this.stateMachine?.setState('WAITING'));
         this._setStatus('waiting');
-        if (shouldRespond) this._safeChat("I'll wait here.");
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} asked you to wait/stop. Confirm briefly.`, ctx);
+          this._safeChat(ackText || "I'll wait here.");
+        }
         break;
 
       case 'LOITER':
         this.workers?.stop().then(() => this.stateMachine?.setState('LOITERING'));
         this._setStatus('loitering');
-        if (shouldRespond) this._safeChat("I'll wander around a bit.");
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} told you to wander around. Confirm briefly.`, ctx);
+          this._safeChat(ackText || "I'll wander around a bit.");
+        }
         break;
 
       case 'WORK_FARM': {
@@ -484,12 +539,12 @@ class BotManager extends EventEmitter {
         const desc = await this.observer?.describeEnvironment() || 'nothing notable';
         const area = this.bot?.entity?.position
           ? this.memory.enclosing(this.bot.entity.position)[0] : null;
-        const response = await this.dialogue.generate(
+        const { text: obsText } = await this.dialogue.generate(
           `Describe your surroundings naturally. Raw scan: "${desc}".${area ? ` You are near ${area.name}.` : ''}`,
-          { ...ctx, isDirectAddress: true }
-        ) || desc;
+          { ...ctx, isDirectAddress: true }, 'OBSERVE', 'standard'
+        );
         await delay(rd);
-        this._safeChat(response);
+        this._safeChat(obsText || desc);
         if (area) this.memory.cacheState(area.id, { lastObservation: desc });
         break;
       }
@@ -516,8 +571,26 @@ class BotManager extends EventEmitter {
 
       case 'RESPOND': {
         if (!responsePrompt) break;
-        const resp = await this.dialogue.generate(responsePrompt, { ...ctx, isDirectAddress: true, isQuestion: flags.isQuestion });
-        if (resp) { await delay(rd + Math.random() * 600); this._safeChat(resp); }
+        const { text: respText, tier } = await this.dialogue.generate(
+          responsePrompt, { ...ctx, isDirectAddress: true, isQuestion: flags.isQuestion },
+          'RESPOND'
+        );
+        if (respText) {
+          await delay(rd + Math.random() * 600);
+          this._safeChat(respText);
+          // If deep tier returned a plan and auto-execute is on, run it
+          if (tier === 'deep' && this.cfg.planning?.autoExecute && PlanExecutor.isPlan(respText)) {
+            const steps = PlanExecutor.parseSteps(respText);
+            if (steps.length > 0) {
+              const confirmFn = this.cfg.planning?.requireConfirmation
+                ? this._makePlanConfirmFn(username)
+                : null;
+              this.planExec.execute(steps, confirmFn).catch(e =>
+                console.error('[BotManager] Plan execution error:', e.message)
+              );
+            }
+          }
+        }
         break;
       }
 
@@ -563,13 +636,49 @@ class BotManager extends EventEmitter {
   _buildContext(username, flags = {}) {
     const pos = this.bot?.entity?.position || null;
     return {
-      state:       this.stateMachine?.currentState || 'idle',
-      environment: this.observer?.lastObservation  || 'a quiet area',
-      username:    username || 'the player',
-      nearbyArea:  pos ? this.memory.enclosing(pos)[0]?.name || null : null,
-      spatialCtx:  this._buildSpatialContext(pos),
+      state:           this.stateMachine?.currentState || 'idle',
+      environment:     this.observer?.lastObservation  || 'a quiet area',
+      username:        username || 'the player',
+      nearbyArea:      pos ? this.memory.enclosing(pos)[0]?.name || null : null,
+      spatialCtx:      this._buildSpatialContext(pos),
+      inventoryCtx:    this._buildInventoryCtx(),
+      playerProximity: this._getPlayerProximity(username),
+      socialEnergy:    this.social?.level ?? 100,
       ...flags,
     };
+  }
+
+  _buildInventoryCtx() {
+    if (!this.bot) return null;
+    try {
+      const items = this.bot.inventory.items();
+      if (!items.length) return 'empty inventory';
+      const counts = {};
+      for (const item of items) counts[item.name] = (counts[item.name] || 0) + item.count;
+      const top = Object.entries(counts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 8)
+        .map(([name, count]) => `${count}× ${name.replace(/_/g, ' ')}`);
+      const overflow = Object.keys(counts).length > 8 ? ', +more' : '';
+      return top.join(', ') + overflow;
+    } catch { return null; }
+  }
+
+  _getPlayerProximity(username) {
+    if (!this.bot || !username) return null;
+    try {
+      const player = this.bot.players[username];
+      if (!player?.entity) return null;  // outside render distance
+      const bPos  = this.bot.entity.position;
+      const pPos  = player.entity.position;
+      const dx    = pPos.x - bPos.x;
+      const dz    = pPos.z - bPos.z;
+      const dist  = Math.round(Math.sqrt(dx * dx + dz * dz));
+      const angle = Math.atan2(dx, -dz) * 180 / Math.PI;
+      const dirs  = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+      const dir   = dirs[Math.round(((angle % 360) + 360) % 360 / 45) % 8];
+      return { distance: dist, direction: dir };
+    } catch { return null; }
   }
 
   _buildSpatialContext(pos) {
@@ -582,6 +691,58 @@ class BotManager extends EventEmitter {
         anvil:      this.memory.getNearestWorkstation('anvil',             pos),
       };
     } catch { return null; }
+  }
+
+  /** Wire plan executor events → state machine + bgEvents */
+  _wirePlanExecutor() {
+    this.planExec.on('plan:step', ({ index, total, description, action, locationHint }) => {
+      this._bgEvent('state', 'info', `Plan step ${index}/${total}: ${description}`);
+      // Execute the step
+      if (!this.connected || !this.bot) return;
+      switch (action) {
+        case 'WORK_FARM':    this.stateMachine?.setState('WORKING'); this.workers?.start('farm',    { locationName: locationHint }); break;
+        case 'WORK_PATROL':  this.stateMachine?.setState('WORKING'); this.workers?.start('patrol',  { locationName: locationHint }); break;
+        case 'WORK_COLLECT': this.stateMachine?.setState('WORKING'); this.workers?.start('collect', { locationName: locationHint }); break;
+        case 'WAIT':         this.workers?.stop().then(() => this.stateMachine?.setState('WAITING')); break;
+        case 'WORK_STOP':    this.workers?.stop(); break;
+        case 'GO_TO': {
+          if (locationHint) {
+            const loc = this.memory.resolve(locationHint);
+            if (loc) this._goToLocation(loc);
+          }
+          break;
+        }
+        case 'CHAT':
+          // Unrecognised step — just say it
+          this._safeChat(description);
+          break;
+      }
+    });
+    this.planExec.on('plan:done',    ({ stepsCompleted }) => {
+      this._bgEvent('state', 'ok', `Plan completed — ${stepsCompleted} step(s) done`);
+    });
+    this.planExec.on('plan:stopped', () => {
+      this._bgEvent('state', 'warn', 'Plan stopped');
+    });
+  }
+
+  /** Returns a confirmation function that asks the player in chat and awaits yes/no */
+  _makePlanConfirmFn(username) {
+    return (description, step, total) => new Promise(resolve => {
+      this._safeChat(`Step ${step}/${total}: ${description} — ok? (yes/no)`);
+      const timeout = setTimeout(() => {
+        off();
+        resolve(false);
+      }, 25_000);
+      const handler = (u, msg) => {
+        if (u !== username) return;
+        const lower = msg.toLowerCase().trim();
+        if (/^(yes|y|ok|sure|go|do it)/.test(lower)) { off(); resolve(true); }
+        if (/^(no|n|stop|cancel|skip)/.test(lower))  { off(); resolve(false); }
+      };
+      const off = () => { clearTimeout(timeout); this.bot?.removeListener('chat', handler); };
+      this.bot?.on('chat', handler);
+    });
   }
 
   _setStatus(status) {

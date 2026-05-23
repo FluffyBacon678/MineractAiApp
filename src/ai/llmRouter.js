@@ -168,6 +168,71 @@ class LLMRouter extends EventEmitter {
     return null;
   }
 
+  // ── Tier-based routing ────────────────────────────────────────────────────
+
+  /**
+   * Route by complexity tier rather than call-type strategy.
+   * Returns { text, provider, model } so callers can log which tier was used.
+   */
+  async completeByTier(tier, messages, extraOpts = {}) {
+    const { provider, model } = this._providerForTier(tier);
+    const opts  = { ...extraOpts, model };
+    const text  = await this._call(provider, messages, opts);
+    if (text !== null) return { text, provider, model };
+
+    // Fallback: try the next tier down
+    const fallbackTier = tier === 'deep' ? 'standard' : 'quick';
+    if (fallbackTier !== tier) {
+      const fb = this._providerForTier(fallbackTier);
+      const ft = await this._call(fb.provider, { ...opts, model: fb.model }, messages, opts);
+      if (ft !== null) {
+        this.stats.fallbacks++;
+        return { text: ft, provider: fb.provider, model: fb.model };
+      }
+    }
+    return { text: null, provider, model };
+  }
+
+  _providerForTier(tier) {
+    switch (tier) {
+      case 'quick':
+        // Always local — never burn cloud tokens on greetings/acks
+        return {
+          provider: 'ollama',
+          model: this.config.ollama?.quickModel || this.config.ollama?.model || 'llama3.2',
+        };
+
+      case 'standard':
+        if (this.ollamaAvailable()) return {
+          provider: 'ollama',
+          model: this.config.ollama?.dialogueModel || this.config.ollama?.model,
+        };
+        if (this.openAiAvailable()) return {
+          provider: 'openai',
+          model: this.config.openai?.model || 'gpt-4o-mini',
+        };
+        return { provider: 'ollama', model: this.config.ollama?.model };
+
+      case 'deep':
+        // Cloud-first: best reasoning quality matters here
+        if (this.claudeAvailable()) return {
+          provider: 'claude',
+          model: this.config.claude?.model || 'claude-haiku-4-5-20251001',
+        };
+        if (this.openAiAvailable()) return {
+          provider: 'openai',
+          model: this.config.openai?.model || 'gpt-4o-mini',
+        };
+        return {
+          provider: 'ollama',
+          model: this.config.ollama?.dialogueModel || this.config.ollama?.model,
+        };
+
+      default:
+        return { provider: 'ollama', model: this.config.ollama?.model };
+    }
+  }
+
   // ── Provider calls ─────────────────────────────────────────────────────────
 
   async _call(provider, messages, opts) {

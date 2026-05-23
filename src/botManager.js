@@ -35,8 +35,10 @@ class BotManager extends EventEmitter {
     this.bot       = null;
     this.connected = false;
     this.status    = 'disconnected';
-    this._reconnectTimer = null;
-    this._greetedAt      = 0;
+    this._reconnectTimer  = null;
+    this._greetedAt       = 0;
+    this._bgEvents        = [];   // ring buffer — max 250
+    this._bgEventSeq      = 0;
 
     // ── Persistent subsystems ─────────────────────────────────────────────
     this.character   = new CharacterProfile();
@@ -50,10 +52,28 @@ class BotManager extends EventEmitter {
 
     // Forward router stats to UI
     this.router.on('router:used',             e => this.emit('llm:used',         e));
-    this.router.on('router:fallback',         e => this.emit('llm:fallback',      e));
-    this.router.on('router:openai-auth-error',  () => this.emit('llm:openai-error', 'Invalid API key'));
-    this.router.on('router:openai-rate-limited',() => this.emit('llm:openai-error', 'Rate limited'));
-    this.router.on('router:claude-auth-error',  () => this.emit('llm:openai-error', 'Claude: Invalid API key'));
+    this.router.on('router:fallback',         e => {
+      this.emit('llm:fallback', e);
+      this._bgEvent('llm', 'warn', `Fallback: ${e.from} → ${e.to}`, `call type: ${e.callType}`);
+    });
+    this.router.on('router:openai-auth-error',  () => {
+      this.emit('llm:openai-error', 'Invalid API key');
+      this._bgEvent('llm', 'error', 'OpenAI API key is invalid', 'Check AI & Models settings');
+    });
+    this.router.on('router:openai-rate-limited',() => {
+      this.emit('llm:openai-error', 'Rate limited');
+      this._bgEvent('llm', 'warn', 'OpenAI rate limited', 'Will retry after cooldown');
+    });
+    this.router.on('router:claude-auth-error',  () => {
+      this.emit('llm:openai-error', 'Claude: Invalid API key');
+      this._bgEvent('llm', 'error', 'Claude API key is invalid', 'Check AI & Models settings');
+    });
+    this.router.on('router:ollama-error',       (msg) => {
+      this._bgEvent('llm', 'warn', `Ollama is not responding`, msg);
+    });
+    this.router.on('router:ollama-circuit-open', () => {
+      this._bgEvent('llm', 'error', 'Ollama circuit open — pausing for 60s', 'Check that Ollama is running on the configured URL');
+    });
 
     // Internal monologue
     this.monologue = new Monologue(this.cfg, this.router);
@@ -78,6 +98,20 @@ class BotManager extends EventEmitter {
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
+  // ── Background Knowledge ──────────────────────────────────────────────────
+
+  _bgEvent(cat, level, msg, detail = null) {
+    const entry = { id: ++this._bgEventSeq, at: Date.now(), cat, level, msg, detail };
+    this._bgEvents.push(entry);
+    if (this._bgEvents.length > 250) this._bgEvents.shift();
+    this.emit('bgevent', entry);
+  }
+
+  getBgEvents()   { return [...this._bgEvents].reverse(); }
+  clearBgEvents() { this._bgEvents = []; this._bgEventSeq = 0; }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
   connect() {
     if (this.connected) return;
     this._clearReconnect();
@@ -85,16 +119,21 @@ class BotManager extends EventEmitter {
 
     const username = this.cfg.bot?.username || this.character.getName() || 'Bud';
 
+    const host = this.cfg.bot?.host || 'localhost';
+    const port = this.cfg.bot?.port || 25565;
+    this._bgEvent('connection', 'info', `Connecting to ${host}:${port} as ${username}`);
+
     try {
       this.bot = mineflayer.createBot({
-        host:    this.cfg.bot?.host    || 'localhost',
-        port:    this.cfg.bot?.port    || 25565,
+        host,
+        port,
         username,
         version: this.cfg.bot?.version || '1.21.1',
         auth:    'offline',
       });
     } catch (err) {
       this.emit('error', `createBot failed: ${err.message}`);
+      this._bgEvent('connection', 'error', `Cannot create bot: ${err.message}`);
       this._setStatus('error');
       this._scheduleReconnect();
       return;
@@ -105,9 +144,16 @@ class BotManager extends EventEmitter {
 
     this.bot.once('spawn',  () => this._onSpawn());
     this.bot.on('chat',     (u, m) => this._onChat(u, m).catch(e => console.error('[BotManager] chat error:', e.message)));
-    this.bot.on('error',    e  => { this.emit('error', e.message); });
+    this.bot.on('error',    e  => {
+      this.emit('error', e.message);
+      this._bgEvent('connection', 'error', `Connection error: ${e.message}`);
+    });
     this.bot.on('end',      r  => this._onEnd(r));
-    this.bot.on('kicked',   r  => { this.emit('log', `Kicked: ${r}`); this._onEnd(r); });
+    this.bot.on('kicked',   r  => {
+      this.emit('log', `Kicked: ${r}`);
+      this._bgEvent('connection', 'error', `Kicked from server`, String(r));
+      this._onEnd(r);
+    });
   }
 
   disconnect() {
@@ -189,6 +235,10 @@ class BotManager extends EventEmitter {
     this.cfg.openai.enabled = !!(this.cfg.openai?.apiKey);
     this.cfg.claude.enabled = !!(this.cfg.claude?.apiKey);
     this.router.updateConfig(this.cfg);
+    this._bgEvent('llm', 'info',
+      `AI settings updated — strategy: ${this.cfg.hybrid.strategy}`,
+      `Ollama on · OpenAI ${this.cfg.openai.enabled ? 'on' : 'off'} · Claude ${this.cfg.claude.enabled ? 'on' : 'off'}`
+    );
     this.emit('llm:config-updated', {
       openAiEnabled: this.cfg.openai.enabled,
       claudeEnabled: this.cfg.claude.enabled,
@@ -223,19 +273,38 @@ class BotManager extends EventEmitter {
     this.intentParser = new IntentParser(this.cfg, this.router);
     this.memoryParser = new MemoryParser(this.cfg, this.router);
     this.dialogue     = new Dialogue(this.cfg, this.character, this.router);
-    this.observer     = new Observer(this.bot, this.cfg);
+    this.observer     = new Observer(this.bot, this.cfg, this.memory);  // pass memory for workstation auto-detection
     this.stateMachine = new StateMachine(this.bot, this.cfg);
     this.workers      = new WorkerManager(this.bot, this.cfg, this.memory, this.permissions);
 
     // Forward worker events to UI
-    this.workers.on('worker:start',    e => { this._setStatus(e.label); this.emit('worker:start', e); });
-    this.workers.on('worker:done',     e => { this._setStatus('idle');  this.emit('worker:done', e); this.stateMachine.setState('WAITING'); });
-    this.workers.on('worker:error',    e => { this._setStatus('idle');  this.emit('worker:error', e); this.stateMachine.setState('WAITING'); });
+    this.workers.on('worker:start',    e => {
+      this._setStatus(e.label);
+      this.emit('worker:start', e);
+      this._bgEvent('state', 'info', `Task started: ${e.label || e.type}`);
+    });
+    this.workers.on('worker:done',     e => {
+      this._setStatus('idle');
+      this.emit('worker:done', e);
+      this.stateMachine.setState('WAITING');
+      this._bgEvent('state', 'ok', `Task finished: ${e.label || e.type || 'task'}`);
+    });
+    this.workers.on('worker:error',    e => {
+      this._setStatus('idle');
+      this.emit('worker:error', e);
+      this.stateMachine.setState('WAITING');
+      this._bgEvent('state', 'error', `Task failed: ${e.label || e.type || 'task'}`, e.error || null);
+    });
     this.workers.on('worker:progress', e => this.emit('worker:progress', e));
-    this.workers.on('worker:threat',   e => this.emit('worker:threat', e));
+    this.workers.on('worker:threat',   e => {
+      this.emit('worker:threat', e);
+      this._bgEvent('state', 'warn', `Threat detected near ${e.location || 'task area'}`);
+    });
 
-    this.stateMachine.setState(this.character.get().defaultBehaviorMode || 'WAITING');
+    const defaultMode = this.character.get().defaultBehaviorMode || 'WAITING';
+    this.stateMachine.setState(defaultMode);
     this.observer.start(this.stateMachine);
+    this._bgEvent('state', 'info', `Mode activated: ${defaultMode}`);
     this._stateChangedAt = Date.now();
     this.monologue.start(() => ({
       state:        this.stateMachine?.state || 'UNKNOWN',
@@ -244,6 +313,7 @@ class BotManager extends EventEmitter {
       recentEvent:  this._lastMonologueEvent || null,
     }));
 
+    this._bgEvent('connection', 'ok', `Joined world as ${this.bot.username}`);
     this.emit('log', `Connected as ${this.bot.username}`);
 
     // First greeting with slight delay — use OpenAI if available (important moment)
@@ -485,13 +555,27 @@ class BotManager extends EventEmitter {
   }
 
   _buildContext(username, flags = {}) {
+    const pos = this.bot?.entity?.position || null;
     return {
       state:       this.stateMachine?.currentState || 'idle',
       environment: this.observer?.lastObservation  || 'a quiet area',
       username:    username || 'the player',
-      nearbyArea:  this.memory.enclosing(this.bot?.entity?.position || {x:0,y:0,z:0})[0]?.name || null,
+      nearbyArea:  pos ? this.memory.enclosing(pos)[0]?.name || null : null,
+      spatialCtx:  this._buildSpatialContext(pos),
       ...flags,
     };
+  }
+
+  _buildSpatialContext(pos) {
+    try {
+      return {
+        bed:        this.memory.getBed(),
+        crafting:   this.memory.getNearestWorkstation('crafting_table',   pos),
+        furnace:    this.memory.getNearestWorkstation('furnace',           pos),
+        enchanting: this.memory.getNearestWorkstation('enchanting_table',  pos),
+        anvil:      this.memory.getNearestWorkstation('anvil',             pos),
+      };
+    } catch { return null; }
   }
 
   _setStatus(status) {
@@ -502,17 +586,22 @@ class BotManager extends EventEmitter {
   _onEnd(reason) {
     const was    = this.connected;
     this.connected = false;
+    this.monologue?.stop();
     this.workers?.destroy();
     this.observer?.stop();
     this.stateMachine?.destroy();
     this._setStatus('disconnected');
-    if (was) this.emit('log', `Disconnected: ${reason || 'unknown'}`);
+    if (was) {
+      this.emit('log', `Disconnected: ${reason || 'unknown'}`);
+      this._bgEvent('connection', 'warn', `Disconnected`, String(reason || 'connection closed'));
+    }
     this._scheduleReconnect();
   }
 
   _scheduleReconnect() {
     this._clearReconnect();
     this._setStatus('reconnecting…');
+    this._bgEvent('connection', 'info', 'Will reconnect in 8s');
     this._reconnectTimer = setTimeout(() => {
       if (!this.connected) { this.emit('log', 'Reconnecting…'); this.connect(); }
     }, 8_000);

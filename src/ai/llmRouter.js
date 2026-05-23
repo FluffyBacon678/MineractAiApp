@@ -214,8 +214,15 @@ class LLMRouter extends EventEmitter {
       this._ollamaFails++;
       this._ollamaFailedAt = Date.now();
       this.stats.errors++;
-      if (err.name === 'TimeoutError') console.warn(`[LLMRouter] Ollama timed out (${this.config.ollama?.timeoutMs}ms)`);
-      else console.error('[LLMRouter] Ollama error:', err.message);
+      const firstFail = this._ollamaFails === 1;
+      if (err.name === 'TimeoutError') {
+        console.warn(`[LLMRouter] Ollama timed out (${this.config.ollama?.timeoutMs}ms)`);
+        if (firstFail) this.emit('router:ollama-error', 'Timed out — is Ollama running?');
+      } else {
+        console.error('[LLMRouter] Ollama error:', err.message);
+        if (firstFail) this.emit('router:ollama-error', err.message);
+      }
+      if (this._ollamaFails >= 5) this.emit('router:ollama-circuit-open');
       return null;
     }
   }

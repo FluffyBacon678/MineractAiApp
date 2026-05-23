@@ -214,6 +214,8 @@ input.tsl{accent-color:var(--accent);cursor:pointer;width:100%;margin-top:5px}
 .tag.storage{background:#2a2510;color:var(--yellow)}
 .tag.village,.tag.animal_pen{background:#1e1230;color:var(--purple)}
 .tag.waypoint,.tag.poi{background:#1a2535;color:var(--text2)}
+.tag.bed{background:#2a1a30;color:var(--pink)}
+.tag.workstation{background:#1a2a25;color:var(--teal)}
 
 /* ── Freshness bar ── */
 .fbar{height:3px;border-radius:2px;background:var(--bg3);margin-top:4px;overflow:hidden}
@@ -299,6 +301,42 @@ hr.rule{border:none;border-top:1px solid var(--border);margin:14px 0}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var(--teal);
   background:var(--bg2);padding:1px 5px;border-radius:3px}
+
+/* ── System Log (Background Knowledge) ── */
+.bg-filter-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.bg-filter{padding:4px 11px;border-radius:12px;font-size:11.5px;font-weight:600;
+  background:var(--bg2);border:1px solid var(--border2);color:var(--text2);
+  cursor:pointer;transition:all .12s;user-select:none}
+.bg-filter:hover{border-color:var(--accent);color:var(--text)}
+.bg-filter.active{background:var(--bg3);border-color:var(--accent);color:var(--accent)}
+.bg-filter[data-cat=error].active{border-color:var(--red);color:var(--red);background:#2a1212}
+.bg-filter[data-cat=connection].active{border-color:var(--blue);color:var(--blue);background:#1a2440}
+.bg-filter[data-cat=llm].active{border-color:var(--purple);color:var(--purple);background:#1e1630}
+.bg-filter[data-cat=state].active{border-color:var(--teal);color:var(--teal);background:#162a2a}
+.bg-event-list{display:flex;flex-direction:column;gap:3px}
+.bg-ev{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;
+  border-radius:var(--rsm);background:var(--bg2);border-left:3px solid transparent;
+  transition:background .1s}
+.bg-ev:hover{background:var(--bg3)}
+.bg-ev.ok   {border-left-color:var(--green)}
+.bg-ev.info {border-left-color:var(--blue)}
+.bg-ev.warn {border-left-color:var(--yellow)}
+.bg-ev.error{border-left-color:var(--red)}
+.bg-ev-icon{font-size:14px;flex-shrink:0;width:18px;text-align:center;padding-top:1px}
+.bg-ev-body{flex:1;min-width:0}
+.bg-ev-msg{font-size:12.5px;color:var(--text);line-height:1.4;word-break:break-word}
+.bg-ev.warn .bg-ev-msg{color:var(--yellow)}
+.bg-ev.error .bg-ev-msg{color:var(--red)}
+.bg-ev.ok .bg-ev-msg{color:var(--green)}
+.bg-ev-detail{font-size:11px;color:var(--text3);margin-top:2px;line-height:1.35}
+.bg-ev-ts{font-size:10.5px;color:var(--text3);flex-shrink:0;padding-top:2px;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.bg-cat-chip{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;
+  font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-right:5px}
+.bg-cat-chip.connection{background:#1a2440;color:var(--blue)}
+.bg-cat-chip.llm{background:#1e1630;color:var(--purple)}
+.bg-cat-chip.state{background:#162a2a;color:var(--teal)}
+.bg-cat-chip.error{background:#2a1212;color:var(--red)}
 </style>
 </head>
 <body>
@@ -330,6 +368,7 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
   <div class="ni" data-page="resources"><span class="ico">⚡</span>Resources</div>
   <div class="ni" data-page="settings"><span class="ico">⚙</span>Settings</div>
   <div class="ni" data-page="log"><span class="ico">📋</span>Activity Log</div>
+  <div class="ni" data-page="syslog"><span class="ico">🔍</span>System Log<span class="nbadge" id="syslog-badge">0</span></div>
   <div id="sb-bot">
     <div class="spill">
       <div class="sdot" id="sb-dot"></div>
@@ -853,6 +892,35 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════ SYSTEM LOG -->
+<div class="page" id="page-syslog">
+  <div class="phdr">
+    <div>
+      <div class="ptitle">System Log</div>
+      <div class="psub">Live internal events — connection status, AI providers, mode changes, errors</div>
+    </div>
+    <div class="phdr-actions">
+      <button class="btn sm ghost" id="syslog-refresh">↻ Refresh</button>
+      <button class="btn sm dan"   id="syslog-clear">Clear</button>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="bg-filter-bar">
+    <span class="bg-filter active" data-cat="all">All</span>
+    <span class="bg-filter" data-cat="connection">🌐 Connection</span>
+    <span class="bg-filter" data-cat="llm">🤖 AI Providers</span>
+    <span class="bg-filter" data-cat="state">🎮 State / Tasks</span>
+    <span class="bg-filter" data-cat="error">⚠ Errors only</span>
+  </div>
+
+  <div class="card" style="padding:0 0 4px">
+    <div id="syslog-list" class="bg-event-list" style="padding:8px 12px 4px">
+      <div class="empty">No events yet. Connect to the Minecraft server to start.</div>
+    </div>
+  </div>
+</div>
+
 </div></div></div>
 
 <script>
@@ -862,6 +930,7 @@ const $ = id => document.getElementById(id);
 const chatMsgs = [];
 let charMeta = null, traitValues = {}, stalePending = {}, logEntries = [];
 let isConnected = false, unread = 0, curPage = 'dashboard';
+let bgEvents = [], bgFilter = 'all', bgErrorCount = 0;
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -941,6 +1010,12 @@ function navTo(page){
   if(page==='character')   loadCharacter();
   if(page==='ai')          loadAISettings();
   if(page==='resources')   loadResourceLimits();
+  if(page==='syslog'){
+    bgErrorCount=0;
+    const badge=$('syslog-badge');
+    badge.style.display='none'; badge.textContent='0';
+    refreshSysLog();
+  }
 }
 document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>navTo(el.dataset.page)));
 $('tb-char').addEventListener('click',()=>navTo('character'));
@@ -972,6 +1047,7 @@ api.on('bot:status', s=>{ setStatus(s); if(s!=='disconnected') refreshMemory().c
 api.on('bot:chat',   c=>appendChat(c.from,c.message,c.from==='bot'?'bot':c.from==='system'?'system':'player'));
 api.on('bot:error',  e=>addSysMsg(String(e),'err'));
 api.on('bot:log',    l=>{ const m=typeof l==='string'?l:(l.msg||JSON.stringify(l)); addLogEntry({at:l.at||Date.now(),msg:m}); });
+api.on('bot:bgevent',e=>pushBgEvent(e));
 api.on('bot:resources', r=>updateMeters(r));
 api.on('bot:profile', ({profile})=>{
   document.querySelectorAll('.pchip').forEach(c=>c.classList.toggle('active',c.dataset.profile===profile));
@@ -1086,6 +1162,85 @@ $('log-refresh').addEventListener('click',refreshLog);
 $('log-clear').addEventListener('click',async()=>{
   if(!confirm('Clear all activity log entries?')) return;
   await api.logClear().catch(()=>{}); logEntries.length=0; renderLog();
+});
+
+// ── System Log ────────────────────────────────────────────────────────────────
+const BG_ICONS = { connection:'🌐', llm:'🤖', state:'🎮', error:'⚠' };
+
+function _bgLevelForCat(cat, level) {
+  // 'error' filter matches any entry with level===error regardless of cat
+  return level;
+}
+
+function bgEventMatches(ev) {
+  if (bgFilter === 'all')    return true;
+  if (bgFilter === 'error')  return ev.level === 'error';
+  return ev.cat === bgFilter;
+}
+
+function renderSysLog() {
+  const el = $('syslog-list');
+  const filtered = bgEvents.filter(bgEventMatches);
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty">No events match the current filter.</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(ev => {
+    const icon = BG_ICONS[ev.cat] || '•';
+    const detail = ev.detail ? `<div class="bg-ev-detail">${esc(ev.detail)}</div>` : '';
+    return `<div class="bg-ev ${esc(ev.level)}">
+      <span class="bg-ev-icon">${icon}</span>
+      <div class="bg-ev-body">
+        <div class="bg-ev-msg">
+          <span class="bg-cat-chip ${esc(ev.cat)}">${esc(ev.cat)}</span>${esc(ev.msg)}
+        </div>${detail}
+      </div>
+      <span class="bg-ev-ts">${timeStr(ev.at)}</span>
+    </div>`;
+  }).join('');
+}
+
+function pushBgEvent(ev) {
+  bgEvents.unshift(ev);
+  if (bgEvents.length > 250) bgEvents.length = 250;
+  // Bump badge for error/warn events when not on the syslog page
+  if ((ev.level === 'error') && curPage !== 'syslog') {
+    bgErrorCount++;
+    const badge = $('syslog-badge');
+    badge.textContent = bgErrorCount > 99 ? '99+' : bgErrorCount;
+    badge.style.display = '';
+  }
+  if (curPage === 'syslog') renderSysLog();
+}
+
+async function refreshSysLog() {
+  try {
+    const es = await api.bgEventsGetAll();
+    bgEvents.length = 0;
+    es.forEach(e => bgEvents.push(e));
+    renderSysLog();
+  } catch(e) { /* silent */ }
+}
+
+// Filter bar clicks
+document.querySelectorAll('.bg-filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.bg-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    bgFilter = btn.dataset.cat;
+    renderSysLog();
+  });
+});
+
+$('syslog-refresh').addEventListener('click', refreshSysLog);
+$('syslog-clear').addEventListener('click', async () => {
+  if (!confirm('Clear all system log events?')) return;
+  await api.bgEventsClear().catch(() => {});
+  bgEvents.length = 0;
+  bgErrorCount = 0;
+  const badge = $('syslog-badge');
+  badge.style.display = 'none'; badge.textContent = '0';
+  renderSysLog();
 });
 
 // ── Memory ────────────────────────────────────────────────────────────────────

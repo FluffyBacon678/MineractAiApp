@@ -15,16 +15,19 @@ const { resolveDataFile } = require('../paths');
 const DATA_FILE = resolveDataFile('world-memory.json');
 
 const TYPE_META = {
-  house:      { defaultOwner:'player'  },
-  ai_home:    { defaultOwner:'ai'      },
-  farm:       { defaultOwner:'player'  },
-  storage:    { defaultOwner:'player'  },
-  village:    { defaultOwner:'neutral' },
-  danger:     { defaultOwner:'neutral' },
-  building:   { defaultOwner:'player'  },
-  animal_pen: { defaultOwner:'player'  },
-  waypoint:   { defaultOwner:'neutral' },
-  poi:        { defaultOwner:'neutral' },
+  house:       { defaultOwner:'player'  },
+  ai_home:     { defaultOwner:'ai'      },
+  farm:        { defaultOwner:'player'  },
+  storage:     { defaultOwner:'player'  },
+  village:     { defaultOwner:'neutral' },
+  danger:      { defaultOwner:'neutral' },
+  building:    { defaultOwner:'player'  },
+  animal_pen:  { defaultOwner:'player'  },
+  waypoint:    { defaultOwner:'neutral' },
+  poi:         { defaultOwner:'neutral' },
+  // Spatial awareness
+  bed:         { defaultOwner:'player'  },
+  workstation: { defaultOwner:'player'  },
 };
 
 class WorldMemory extends EventEmitter {
@@ -168,6 +171,26 @@ class WorldMemory extends EventEmitter {
 
   all()         { return Object.values(this.data.locations); }
   allEnriched() { return this.all().map(l => this._enrich(l)); }
+
+  /**
+   * Find the nearest known workstation of a specific subtype (block name tag).
+   * @param {'crafting_table'|'furnace'|'blast_furnace'|'smoker'|'enchanting_table'|'anvil'} subtype
+   * @param {{x,y,z}} pos — bot's current position
+   */
+  getNearestWorkstation(subtype, pos) {
+    const matches = this.all().filter(l =>
+      l.type === 'workstation' && Array.isArray(l.tags) && l.tags.includes(subtype)
+    );
+    if (!matches.length || !pos) return null;
+    return matches.sort((a, b) => _dist(pos, a.coordinates) - _dist(pos, b.coordinates))[0] || null;
+  }
+
+  /** Nearest known bed or AI home. */
+  getBed() {
+    const beds = this.findByType('bed');
+    if (beds.length) return beds[0];
+    return this.findByType('ai_home')[0] || null;
+  }
 
   resolve(text) {
     if (!text) return null;

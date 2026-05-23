@@ -43,6 +43,19 @@ const MOCK_SCRIPT = `
       {at:Date.now()-30000, msg:'Intent: FOLLOW (0.92)'},
       {at:Date.now()-60000, msg:'Ollama response in 1.2s'},
     ],
+    bgEvents:[
+      {id:1, at:Date.now()-180000, cat:'connection', level:'info',  msg:'Connecting to localhost:25565 as Bud', detail:null},
+      {id:2, at:Date.now()-179000, cat:'connection', level:'ok',    msg:'Joined world as Bud', detail:null},
+      {id:3, at:Date.now()-178000, cat:'state',      level:'info',  msg:'Mode activated: WAITING', detail:null},
+      {id:4, at:Date.now()-120000, cat:'llm',        level:'info',  msg:'AI settings updated — strategy: quality_routing', detail:'Ollama on · OpenAI off · Claude off'},
+      {id:5, at:Date.now()-90000,  cat:'llm',        level:'warn',  msg:'Fallback: openai → ollama', detail:'call type: dialogue'},
+      {id:6, at:Date.now()-60000,  cat:'state',      level:'info',  msg:'Task started: Farming'},
+      {id:7, at:Date.now()-45000,  cat:'state',      level:'warn',  msg:'Threat detected near task area', detail:null},
+      {id:8, at:Date.now()-30000,  cat:'state',      level:'ok',    msg:'Task finished: Farming', detail:null},
+      {id:9, at:Date.now()-15000,  cat:'llm',        level:'error', msg:'Ollama is not reachable', detail:'Check that Ollama is running on localhost:11434'},
+      {id:10,at:Date.now()-5000,   cat:'connection', level:'warn',  msg:'Disconnected', detail:'connection closed'},
+      {id:11,at:Date.now()-4000,   cat:'connection', level:'info',  msg:'Will reconnect in 8s', detail:null},
+    ],
     staleness:null,
     prefs:{ width:1200, height:820 },
   };
@@ -123,6 +136,9 @@ const MOCK_SCRIPT = `
     llmTestOllama: (u,m)  => Promise.resolve({ok:true, response:'ok'}),
     llmTestOpenAI: (k,m)  => Promise.resolve({ok:false, error:'No API key in test mode'}),
     llmTestClaude: (k,m)  => Promise.resolve({ok:false, error:'No API key in test mode'}),
+
+    bgEventsGetAll: () => Promise.resolve([..._store.bgEvents].reverse()),
+    bgEventsClear:  () => { _store.bgEvents=[]; return Promise.resolve({ok:true}); },
 
     logGetAll: ()  => Promise.resolve([..._store.log].reverse()),
     logClear:  ()  => { _store.log=[]; return Promise.resolve({ok:true}); },

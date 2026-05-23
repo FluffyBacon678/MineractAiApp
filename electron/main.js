@@ -135,6 +135,7 @@ ipcMain.handle('bot:connect', (_, cfg) => {
     bot.on('worker:error',  e => fwd('bot:worker',      { event: 'error', ...e }));
     bot.on('worker:progress',e=> fwd('bot:worker',      { event: 'progress', ...e }));
     bot.on('worker:threat', e => fwd('bot:worker',      { event: 'threat', ...e }));
+    bot.on('bgevent',       e => fwd('bot:bgevent',     e));
     bot.on('log',           l => appendLog(l));
     bot.on('error',         e => { appendLog({ type:'error', msg: String(e) }); fwd('bot:error', e); });
 
@@ -319,6 +320,13 @@ ipcMain.handle('llm:testClaude', async (_, apiKey, model) => {
     return { ok: false, error: err.name === 'TimeoutError' ? 'Timed out' : err.message };
   }
 });
+
+// ── Character ─────────────────────────────────────────────────────────────────
+
+// ── Background Events ─────────────────────────────────────────────────────────
+
+ipcMain.handle('bgevents:getAll', () => bot?.getBgEvents() ?? []);
+ipcMain.handle('bgevents:clear',  () => { bot?.clearBgEvents(); return { ok: true }; });
 
 // ── Character ─────────────────────────────────────────────────────────────────
 

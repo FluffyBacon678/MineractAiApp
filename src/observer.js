@@ -25,10 +25,23 @@ const PROFILE_TALK_MS  = { lightweight:120_000, normal: 45_000, heavy: 25_000 };
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
+// Workstation block names → tag used in WorldMemory
+const WORKSTATION_TAGS = {
+  crafting_table:   'crafting_table',
+  furnace:          'furnace',
+  blast_furnace:    'furnace',
+  smoker:           'furnace',
+  enchanting_table: 'enchanting_table',
+  anvil:            'anvil',
+  chipped_anvil:    'anvil',
+  damaged_anvil:    'anvil',
+};
+
 class Observer {
-  constructor(bot, config) {
+  constructor(bot, config, memory = null) {
     this.bot             = bot;
     this.config          = config;
+    this.memory          = memory;   // WorldMemory — optional, for auto-detection
     this.stateMachine    = null;
     this.lastObservation = 'a quiet area';
 
@@ -168,10 +181,59 @@ class Observer {
       const chest = this.bot.findBlock({ matching: b => b.name === 'chest', maxDistance: 10 });
       if (chest) notes.push('a chest nearby');
 
+      // Auto-detect workstations and beds → save to WorldMemory if not already known nearby
+      this._detectWorkstations(pos);
+
       return notes.join(', ') || null;
     } catch {
       return null;
     }
+  }
+
+  /** Silently auto-save newly discovered beds / workstations to WorldMemory. */
+  _detectWorkstations(pos) {
+    if (!this.memory || !pos) return;
+    try {
+      // Beds
+      const bed = this.bot.findBlock({ matching: b => b.name?.endsWith('_bed'), maxDistance: 16 });
+      if (bed) this._autoSaveWorkstation('bed', 'bed', bed.position, pos);
+
+      // Workstations
+      for (const [blockName, tag] of Object.entries(WORKSTATION_TAGS)) {
+        const block = this.bot.findBlock({ matching: b => b.name === blockName, maxDistance: 20 });
+        if (block) this._autoSaveWorkstation('workstation', tag, block.position, pos);
+      }
+    } catch { /* silent */ }
+  }
+
+  _autoSaveWorkstation(type, tag, blockPos, botPos) {
+    if (!this.memory) return;
+
+    // Dedup: skip if we already know about this type within 8 blocks
+    const existing = type === 'bed'
+      ? this.memory.findByType('bed')
+      : this.memory.all().filter(l => l.type === 'workstation' && l.tags?.includes(tag));
+
+    const tooClose = existing.some(l => {
+      const dx = l.coordinates.x - blockPos.x;
+      const dz = l.coordinates.z - blockPos.z;
+      const dy = l.coordinates.y - blockPos.y;
+      return Math.sqrt(dx*dx + dy*dy + dz*dz) < 8;
+    });
+    if (tooClose) return;
+
+    const label = type === 'bed' ? 'Bed' : tag.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const name  = `${label} (${Math.floor(blockPos.x)}, ${Math.floor(blockPos.z)})`;
+    try {
+      this.memory.save({
+        name,
+        type,
+        tags:        [tag],
+        coordinates: { x: Math.floor(blockPos.x), y: Math.floor(blockPos.y), z: Math.floor(blockPos.z) },
+        confidence:  0.95,
+        radius:      4,
+      });
+    } catch { /* ignore duplicate-name save errors */ }
   }
 
   _pickComment() {

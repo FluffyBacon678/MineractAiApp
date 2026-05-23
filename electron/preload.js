@@ -4,7 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const ALLOWED = new Set([
   'bot:status','bot:chat','bot:resources','bot:profile','bot:memory',
   'bot:permissions','bot:staleness','bot:character','bot:log','bot:error',
-  'bot:llm','bot:llm-error','bot:llm-config','bot:worker',
+  'bot:llm','bot:llm-error','bot:llm-config','bot:worker','bot:bgevent',
 ]);
 
 contextBridge.exposeInMainWorld('companion', {
@@ -57,6 +57,10 @@ contextBridge.exposeInMainWorld('companion', {
   llmTestOllama: (u,m)    => ipcRenderer.invoke('llm:testOllama', u, m),
   llmTestOpenAI: (k,m)    => ipcRenderer.invoke('llm:testOpenAI', k, m),
   llmTestClaude: (k,m)    => ipcRenderer.invoke('llm:testClaude', k, m),
+
+  // Background Events (system log)
+  bgEventsGetAll: () => ipcRenderer.invoke('bgevents:getAll'),
+  bgEventsClear:  () => ipcRenderer.invoke('bgevents:clear'),
 
   // Log
   logGetAll: ()  => ipcRenderer.invoke('log:getAll'),

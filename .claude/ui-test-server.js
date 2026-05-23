@@ -122,6 +122,7 @@ const MOCK_SCRIPT = `
     llmGetStats:   ()     => Promise.resolve({..._store.llmStats}),
     llmTestOllama: (u,m)  => Promise.resolve({ok:true, response:'ok'}),
     llmTestOpenAI: (k,m)  => Promise.resolve({ok:false, error:'No API key in test mode'}),
+    llmTestClaude: (k,m)  => Promise.resolve({ok:false, error:'No API key in test mode'}),
 
     logGetAll: ()  => Promise.resolve([..._store.log].reverse()),
     logClear:  ()  => { _store.log=[]; return Promise.resolve({ok:true}); },

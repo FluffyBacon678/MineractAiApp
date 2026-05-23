@@ -221,19 +221,14 @@ ipcMain.handle('bot:offlineChat', async (_, msg, cfg) => {
 
 ipcMain.handle('llm:getConfig', () => {
   try {
-    if (bot) {
-      return {
-        openai:  { ...bot.cfg.openai,  apiKey: bot.cfg.openai.apiKey ? '***set***' : '' },
-        ollama:  bot.cfg.ollama,
-        hybrid:  bot.cfg.hybrid,
-      };
-    }
-    // Read from config defaults
-    const cfg = require('../src/config');
+    const src = bot?.cfg ?? require('../src/config');
     return {
-      openai: { ...cfg.openai, apiKey: cfg.openai.apiKey ? '***set***' : '' },
-      ollama: cfg.ollama,
-      hybrid: cfg.hybrid,
+      ollama:    src.ollama,
+      openai:    { ...src.openai,  apiKey: src.openai?.apiKey  ? '***set***' : '' },
+      claude:    { ...src.claude,  apiKey: src.claude?.apiKey  ? '***set***' : '' },
+      hybrid:    src.hybrid,
+      routing:   src.routing,
+      monologue: src.monologue,
     };
   } catch (err) { return {}; }
 });
@@ -293,6 +288,33 @@ ipcMain.handle('llm:testOpenAI', async (_, apiKey, model) => {
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = await res.json();
     return { ok: true, model: data.model, response: data?.choices?.[0]?.message?.content?.trim() };
+  } catch (err) {
+    return { ok: false, error: err.name === 'TimeoutError' ? 'Timed out' : err.message };
+  }
+});
+
+ipcMain.handle('llm:testClaude', async (_, apiKey, model) => {
+  if (!apiKey?.startsWith('sk-ant-')) return { ok: false, error: 'Claude API key must start with sk-ant-' };
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type':      'application/json',
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model:      model || 'claude-haiku-4-5-20251001',
+        max_tokens: 10,
+        messages:   [{ role: 'user', content: 'Reply with only: ok' }],
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.status === 401) return { ok: false, error: 'Invalid API key' };
+    if (res.status === 429) return { ok: false, error: 'Rate limited' };
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    const data = await res.json();
+    return { ok: true, model: data.model, response: data?.content?.[0]?.text?.trim() };
   } catch (err) {
     return { ok: false, error: err.name === 'TimeoutError' ? 'Timed out' : err.message };
   }

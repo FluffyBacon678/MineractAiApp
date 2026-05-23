@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('companion', {
   llmGetStats:   ()       => ipcRenderer.invoke('llm:getStats'),
   llmTestOllama: (u,m)    => ipcRenderer.invoke('llm:testOllama', u, m),
   llmTestOpenAI: (k,m)    => ipcRenderer.invoke('llm:testOpenAI', k, m),
+  llmTestClaude: (k,m)    => ipcRenderer.invoke('llm:testClaude', k, m),
 
   // Log
   logGetAll: ()  => ipcRenderer.invoke('log:getAll'),

@@ -25,15 +25,48 @@ const defaults = {
     enabled:   !!(process.env.OPENAI_API_KEY),
   },
 
+  claude: {
+    apiKey:    process.env.CLAUDE_API_KEY   || '',
+    model:     process.env.CLAUDE_MODEL     || 'claude-haiku-4-5-20251001',
+    timeoutMs: parseInt(process.env.CLAUDE_TIMEOUT_MS, 10) || 30_000,
+    enabled:   !!(process.env.CLAUDE_API_KEY),
+  },
+
   hybrid: {
     // 'ollama' | 'openai' | 'hybrid'
     dialogueProvider: process.env.DIALOGUE_PROVIDER || 'hybrid',
     // 'ollama' | 'openai'  (keep ollama for speed/cost)
     intentProvider:   process.env.INTENT_PROVIDER   || 'ollama',
-    // 'quality_routing' | 'openai_primary' | 'ollama_primary' | 'round_robin'
+    // 'quality_routing' | 'local_first' | 'cheapest' | 'best_quality' | 'openai_primary' | 'ollama_primary'
     strategy:         process.env.HYBRID_STRATEGY   || 'quality_routing',
     // max OpenAI calls per hour
     openAiHourlyLimit:parseInt(process.env.OPENAI_HOURLY_LIMIT, 10) || 30,
+  },
+
+  // Per-task provider overrides. 'auto' defers to global strategy.
+  // Values: 'auto' | 'ollama' | 'openai' | 'claude'
+  routing: {
+    taskMap: {
+      intent:        'ollama',
+      memory:        'ollama',
+      ambient:       'ollama',
+      observe:       'ollama',
+      worker:        'ollama',
+      monologue:     'ollama',
+      dialogue:      'auto',
+      summarization: 'auto',
+      planning:      'auto',
+      reflection:    'auto',
+    },
+    fallbackOrder: ['ollama', 'openai', 'claude'],
+  },
+
+  // Internal monologue — background self-reflection loop
+  monologue: {
+    enabled:     false,
+    intervalMs:  60_000,
+    neuroticism: 5,      // 1-10: how often the monologue fires per tick
+    provider:    'ollama',
   },
 
   companion: {

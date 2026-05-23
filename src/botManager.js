@@ -10,6 +10,7 @@ const Observer                = require('./observer');
 const LLMRouter               = require('./ai/llmRouter');
 const IntentParser            = require('./ai/intentParser');
 const Dialogue                = require('./ai/dialogue');
+const Monologue               = require('./ai/monologue');
 const { CharacterProfile }    = require('./ai/characterProfile');
 const { StalenessConfig }     = require('./memory/stalenessConfig');
 const WorldMemory             = require('./memory/worldMemory');
@@ -52,6 +53,12 @@ class BotManager extends EventEmitter {
     this.router.on('router:fallback',         e => this.emit('llm:fallback',      e));
     this.router.on('router:openai-auth-error',  () => this.emit('llm:openai-error', 'Invalid API key'));
     this.router.on('router:openai-rate-limited',() => this.emit('llm:openai-error', 'Rate limited'));
+    this.router.on('router:claude-auth-error',  () => this.emit('llm:openai-error', 'Claude: Invalid API key'));
+
+    // Internal monologue
+    this.monologue = new Monologue(this.cfg, this.router);
+    this.monologue.on('monologue:thought', ({ thought }) => this.emit('log', `[inner] ${thought}`));
+    this.monologue.on('monologue:adjust',  ({ adjustment }) => this.emit('log', `[adjust] ${adjustment}`));
 
     // Cross-system wiring
     this.resources.on('profile:changed', ({ profile }) => {
@@ -105,6 +112,7 @@ class BotManager extends EventEmitter {
 
   disconnect() {
     this._clearReconnect();
+    this.monologue?.stop();
     this.workers?.destroy();
     this.observer?.stop();
     this.stateMachine?.destroy();
@@ -165,13 +173,25 @@ class BotManager extends EventEmitter {
   /** Update LLM config at runtime (from UI settings save). */
   updateLLMConfig(patch) {
     if (!patch) return;
-    if (patch.openai) Object.assign(this.cfg.openai, patch.openai);
-    if (patch.hybrid) Object.assign(this.cfg.hybrid, patch.hybrid);
-    if (patch.ollama) Object.assign(this.cfg.ollama, patch.ollama);
+    if (patch.ollama)    Object.assign(this.cfg.ollama,    patch.ollama);
+    if (patch.openai)    Object.assign(this.cfg.openai,    patch.openai);
+    if (patch.claude)    Object.assign(this.cfg.claude,    patch.claude);
+    if (patch.hybrid)    Object.assign(this.cfg.hybrid,    patch.hybrid);
+    if (patch.routing) {
+      this.cfg.routing = this.cfg.routing || {};
+      if (patch.routing.taskMap)      Object.assign(this.cfg.routing.taskMap || {}, patch.routing.taskMap);
+      if (patch.routing.fallbackOrder) this.cfg.routing.fallbackOrder = patch.routing.fallbackOrder;
+    }
+    if (patch.monologue) {
+      Object.assign(this.cfg.monologue, patch.monologue);
+      this.monologue?.updateConfig(this.cfg);
+    }
     this.cfg.openai.enabled = !!(this.cfg.openai?.apiKey);
+    this.cfg.claude.enabled = !!(this.cfg.claude?.apiKey);
     this.router.updateConfig(this.cfg);
     this.emit('llm:config-updated', {
       openAiEnabled: this.cfg.openai.enabled,
+      claudeEnabled: this.cfg.claude.enabled,
       strategy:      this.cfg.hybrid.strategy,
     });
   }
@@ -182,6 +202,7 @@ class BotManager extends EventEmitter {
       openAiCallsThisHour: this.router.openAiCallsThisHour(),
       openAiAvailable:     this.router.openAiAvailable(),
       ollamaAvailable:     this.router.ollamaAvailable(),
+      claudeAvailable:     this.router.claudeAvailable(),
       hourlyLimit:         this.cfg.hybrid?.openAiHourlyLimit ?? 30,
     };
   }
@@ -215,6 +236,13 @@ class BotManager extends EventEmitter {
 
     this.stateMachine.setState(this.character.get().defaultBehaviorMode || 'WAITING');
     this.observer.start(this.stateMachine);
+    this._stateChangedAt = Date.now();
+    this.monologue.start(() => ({
+      state:        this.stateMachine?.state || 'UNKNOWN',
+      task:         this.workers?.currentTask?.type || null,
+      stateTimeSec: Math.round((Date.now() - (this._stateChangedAt || Date.now())) / 1000),
+      recentEvent:  this._lastMonologueEvent || null,
+    }));
 
     this.emit('log', `Connected as ${this.bot.username}`);
 

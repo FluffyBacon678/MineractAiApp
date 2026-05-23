@@ -472,83 +472,97 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
 <!-- ═══════════════════════════════════════════════ AI & MODELS -->
 <div class="page" id="page-ai">
   <div class="phdr">
-    <div><div class="ptitle">AI &amp; Models</div><div class="psub">Configure Ollama (local) and OpenAI (cloud) — hybrid routing uses both intelligently</div></div>
+    <div><div class="ptitle">AI &amp; Models</div><div class="psub">Ollama · OpenAI · Claude — modular routing, per-task provider control</div></div>
     <button class="btn sm pri" id="ai-save">Save AI Settings</button>
   </div>
   <div class="err-banner" id="ai-err"></div>
 
   <!-- Ollama -->
   <div class="card">
-    <div class="chdr"><div class="ctitle">Ollama (Local LLM)</div>
-      <div style="display:flex;gap:8px">
-        <span class="badge" id="ollama-badge">unknown</span>
-        <button class="btn xs" id="ollama-test">Test</button>
-      </div>
+    <div class="chdr"><div class="ctitle">Ollama (Local)</div>
+      <div style="display:flex;gap:8px"><span class="badge" id="ollama-badge">unknown</span><button class="btn xs" id="ollama-test">Test</button></div>
     </div>
     <div class="row">
       <div class="col"><label class="lbl">Ollama URL</label><input id="ai-ollama-url" value="http://localhost:11434" placeholder="http://localhost:11434"/></div>
-      <div class="col"><label class="lbl">Model</label><input id="ai-ollama-model" value="llama3.2" placeholder="llama3.2, mistral, qwen2.5:3b…"/></div>
+      <div class="col"><label class="lbl">Model</label><input id="ai-ollama-model" value="llama3.2" placeholder="llama3.2 · mistral · qwen2.5:3b · llama3.1:8b"/></div>
     </div>
     <div class="test-result" id="ollama-result"></div>
-    <div class="dim" style="margin-top:6px">Run on another machine: <code>OLLAMA_HOST=0.0.0.0 ollama serve</code> then set URL to its LAN IP.</div>
+    <div class="dim" style="margin-top:6px">Laptop: use <code>llama3.2:1b</code> or <code>qwen2.5:3b</code> &nbsp;·&nbsp; Desktop: <code>llama3.1:8b</code> or larger &nbsp;·&nbsp; Remote: <code>OLLAMA_HOST=0.0.0.0 ollama serve</code></div>
   </div>
 
   <!-- OpenAI -->
   <div class="card">
-    <div class="chdr"><div class="ctitle">OpenAI (Cloud)</div>
-      <div style="display:flex;gap:8px">
-        <span class="badge" id="openai-badge">not configured</span>
-        <button class="btn xs" id="openai-test">Test</button>
-      </div>
+    <div class="chdr"><div class="ctitle">OpenAI / ChatGPT</div>
+      <div style="display:flex;gap:8px"><span class="badge" id="openai-badge">not configured</span><button class="btn xs" id="openai-test">Test</button></div>
     </div>
     <div class="row">
-      <div class="col"><label class="lbl">API Key</label>
-        <input id="ai-openai-key" type="password" placeholder="sk-…  (leave blank to disable)"/></div>
-      <div class="col2"><label class="lbl">Model</label>
-        <input id="ai-openai-model" value="gpt-4o-mini" placeholder="gpt-4o-mini"/></div>
+      <div class="col"><label class="lbl">API Key</label><input id="ai-openai-key" type="password" placeholder="sk-… (leave blank to disable)"/></div>
+      <div class="col2"><label class="lbl">Model</label><input id="ai-openai-model" value="gpt-4o-mini" placeholder="gpt-4o-mini"/></div>
     </div>
     <div class="test-result" id="openai-result"></div>
-    <div class="dim" style="margin-top:6px">OpenAI is optional. If set, it's used for high-quality responses (direct player conversation). Leave blank to use Ollama only.</div>
   </div>
 
-  <!-- Hybrid routing -->
+  <!-- Claude -->
   <div class="card">
-    <div class="chdr"><div class="ctitle">Hybrid Routing Strategy</div></div>
-    <div class="row" style="margin-bottom:8px">
-      <div class="col"><label class="lbl">Dialogue provider</label>
-        <select id="ai-dialogue-prov">
-          <option value="hybrid">Hybrid (smart routing)</option>
-          <option value="ollama">Ollama only</option>
-          <option value="openai">OpenAI only</option>
-        </select>
-      </div>
-      <div class="col"><label class="lbl">Intent parser</label>
-        <select id="ai-intent-prov">
-          <option value="ollama">Ollama (recommended — fast &amp; cheap)</option>
-          <option value="openai">OpenAI</option>
-        </select>
-      </div>
+    <div class="chdr"><div class="ctitle">Claude / Anthropic</div>
+      <div style="display:flex;gap:8px"><span class="badge" id="claude-badge">not configured</span><button class="btn xs" id="claude-test">Test</button></div>
     </div>
+    <div class="row">
+      <div class="col"><label class="lbl">API Key</label><input id="ai-claude-key" type="password" placeholder="sk-ant-… (leave blank to disable)"/></div>
+      <div class="col2"><label class="lbl">Model</label><input id="ai-claude-model" value="claude-haiku-4-5-20251001" placeholder="claude-haiku-4-5-20251001 · claude-sonnet-4-6"/></div>
+    </div>
+    <div class="test-result" id="claude-result"></div>
+    <div class="dim" style="margin-top:6px">Haiku 4.5 = fast &amp; cheap &nbsp;·&nbsp; Sonnet 4.6 = higher quality &nbsp;·&nbsp; Used for planning, reflection, and complex dialogue by default.</div>
+  </div>
+
+  <!-- Routing strategy -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Routing Strategy</div></div>
     <div class="row" style="margin-bottom:8px">
-      <div class="col"><label class="lbl">Hybrid strategy</label>
+      <div class="col"><label class="lbl">Global strategy</label>
         <select id="ai-strategy">
-          <option value="quality_routing">Quality routing (smart — default)</option>
-          <option value="ollama_primary">Ollama primary, OpenAI fallback</option>
+          <option value="quality_routing">Quality routing — smart default (recommended)</option>
+          <option value="local_first">Local first — Ollama only, never cloud</option>
+          <option value="cheapest">Cheapest — Ollama for all, cloud only for planning</option>
+          <option value="best_quality">Best quality — best cloud provider first</option>
+          <option value="ollama_primary">Ollama primary, cloud fallback</option>
           <option value="openai_primary">OpenAI primary, Ollama fallback</option>
-          <option value="round_robin">Round robin (alternate calls)</option>
         </select>
       </div>
-      <div class="col"><label class="lbl">OpenAI hourly call limit (cost guard)</label>
-        <input id="ai-hourly" type="number" value="30" min="1" max="500" placeholder="30"/></div>
+      <div class="col2"><label class="lbl">OpenAI hourly limit</label>
+        <input id="ai-hourly" type="number" value="30" min="1" max="500"/></div>
     </div>
     <div class="row" style="margin-bottom:0">
-      <div class="col"><label class="lbl">Ollama timeout (ms)</label>
-        <input id="ai-ollama-timeout" type="number" value="20000" min="3000" max="120000"/></div>
-      <div class="col"><label class="lbl">OpenAI timeout (ms)</label>
-        <input id="ai-openai-timeout" type="number" value="15000" min="3000" max="60000"/></div>
+      <div class="col"><label class="lbl">Ollama timeout (ms)</label><input id="ai-ollama-timeout" type="number" value="20000" min="3000" max="120000"/></div>
+      <div class="col"><label class="lbl">OpenAI timeout (ms)</label><input id="ai-openai-timeout" type="number" value="15000" min="3000" max="60000"/></div>
+      <div class="col"><label class="lbl">Claude timeout (ms)</label><input id="ai-claude-timeout" type="number" value="30000" min="3000" max="120000"/></div>
     </div>
-    <div class="dim" style="margin-top:10px;line-height:1.7">
-      <strong style="color:var(--text)">Quality routing</strong> sends intent/ambient/observation calls to Ollama (fast, cheap), and routes direct player conversation + important moments to OpenAI (higher quality). Always falls back to Ollama if OpenAI is unavailable or over limit.
+  </div>
+
+  <!-- Per-task routing -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Per-Task Provider Override</div><span class="dim2">Overrides strategy for specific task types</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px">
+      <div class="task-row"><label class="lbl" style="margin:0">Intent parsing</label>
+        <select class="task-sel" data-task="intent"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Memory detection</label>
+        <select class="task-sel" data-task="memory"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Ambient comments</label>
+        <select class="task-sel" data-task="ambient"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Environment observation</label>
+        <select class="task-sel" data-task="observe"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Worker instructions</label>
+        <select class="task-sel" data-task="worker"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Direct dialogue</label>
+        <select class="task-sel" data-task="dialogue"><option value="auto" selected>Auto (strategy)</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Summarization</label>
+        <select class="task-sel" data-task="summarization"><option value="auto" selected>Auto (strategy)</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Complex planning</label>
+        <select class="task-sel" data-task="planning"><option value="auto" selected>Auto (strategy)</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Long-term reflection</label>
+        <select class="task-sel" data-task="reflection"><option value="auto" selected>Auto (strategy)</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Internal monologue</label>
+        <select class="task-sel" data-task="monologue"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
     </div>
   </div>
 
@@ -781,6 +795,32 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
       <div class="col"><label class="lbl">Talkative chat interval (s) <span class="dim2">unprompted speech frequency</span></label><input id="s-talkative" type="number" value="45" min="10" max="300"/></div>
     </div>
   </div>
+  <!-- Internal monologue -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Internal Monologue</div><span class="dim2">Background self-reflection — Bud checks if he's on track</span></div>
+    <div class="row">
+      <div class="col2" style="display:flex;align-items:center;gap:10px;padding-top:6px">
+        <label class="toggle-wrap"><input type="checkbox" id="s-mono-enabled"><span class="toggle"></span></label>
+        <span class="lbl" style="margin:0">Enable internal monologue</span>
+      </div>
+      <div class="col"><label class="lbl">Check interval (s) <span class="dim2">base tick rate</span></label>
+        <input id="s-mono-interval" type="number" value="60" min="15" max="600"/></div>
+      </div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">Neuroticism (1–10) <span class="dim2">chance to fire per tick = n/10</span></label>
+        <input id="s-mono-neuro" type="range" min="1" max="10" value="5" style="width:100%"/>
+        <div class="dim2" id="s-mono-neuro-val" style="text-align:right">5 / 10</div></div>
+      <div class="col"><label class="lbl">Provider</label>
+        <select id="s-mono-provider">
+          <option value="ollama">Ollama (default — fast, local)</option>
+          <option value="openai">OpenAI</option>
+          <option value="claude">Claude</option>
+          <option value="auto">Auto (follows routing strategy)</option>
+        </select></div>
+    </div>
+    <div class="dim" style="margin-top:8px">When enabled, Bud quietly reflects on his current state and task. If something is wrong he emits an ADJUST directive logged in Activity Log. Neuroticism 10 = fires almost every tick; 1 = rarely.</div>
+  </div>
+
   <div class="card">
     <div class="chdr"><div class="ctitle">Data Files</div></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -959,7 +999,7 @@ function updateMeters(r){
 }
 
 // ── LLM bar ───────────────────────────────────────────────────────────────────
-let llmStats={ollama:0,openai:0,fallbacks:0};
+let llmStats={ollama:0,openai:0,claude:0,fallbacks:0};
 function updateLLMBar(e){
   if(e.provider) llmStats[e.provider]=(llmStats[e.provider]||0)+1;
   if(e.isFallback) llmStats.fallbacks=(llmStats.fallbacks||0)+1;
@@ -967,14 +1007,14 @@ function updateLLMBar(e){
 }
 function renderLLMBar(){
   const bar=$('llm-bar');
-  const total=llmStats.ollama+llmStats.openai;
+  const total=llmStats.ollama+llmStats.openai+llmStats.claude;
   if(!total){ bar.innerHTML='<span class="dim">No LLM activity yet.</span>'; return; }
   const fb=llmStats.fallbacks>0?`<div class="llm-stat"><span style="color:var(--yellow)">⚠ ${llmStats.fallbacks} fallback(s)</span></div>`:'';
+  const cl=llmStats.claude>0?`<div class="llm-stat"><div class="llm-dot" style="background:#cc7722"></div>Claude: ${llmStats.claude}</div>`:'';
   bar.innerHTML=`
     <div class="llm-stat"><div class="llm-dot ollama"></div>Ollama: ${llmStats.ollama}</div>
     <div class="llm-stat"><div class="llm-dot openai"></div>OpenAI: ${llmStats.openai}</div>
-    <div class="llm-stat" style="color:var(--text3)">Total: ${total}</div>
-    ${fb}`;
+    ${cl}<div class="llm-stat" style="color:var(--text3)">Total: ${total}</div>${fb}`;
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────

@@ -302,6 +302,20 @@ hr.rule{border:none;border-top:1px solid var(--border);margin:14px 0}
 code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var(--teal);
   background:var(--bg2);padding:1px 5px;border-radius:3px}
 
+/* ── Toggle switch (used in Settings — monologue enable) ── */
+.toggle-wrap{display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0}
+.toggle-wrap input{display:none}
+.toggle{width:38px;height:22px;background:var(--bg3);border-radius:11px;position:relative;
+  transition:background .2s;border:1px solid var(--border2)}
+.toggle::before{content:'';position:absolute;width:16px;height:16px;border-radius:50%;
+  background:var(--text3);top:2px;left:2px;transition:.2s}
+.toggle-wrap input:checked+.toggle{background:var(--accent);border-color:var(--accent)}
+.toggle-wrap input:checked+.toggle::before{transform:translateX(16px);background:#fff}
+
+/* ── Per-task routing rows ── */
+.task-row{display:flex;flex-direction:column;gap:3px;padding:5px 0}
+.task-sel{width:100%;font-size:11.5px;padding:4px 7px}
+
 /* ── System Log (Background Knowledge) ── */
 .bg-filter-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
 .bg-filter{padding:4px 11px;border-radius:12px;font-size:11.5px;font-weight:600;
@@ -968,13 +982,51 @@ function applyS(s){
   if(s.observeIntervalMs)   $('s-observe').value  =s.observeIntervalMs/1000;
   if(s.talkativeIntervalMs) $('s-talkative').value=s.talkativeIntervalMs/1000;
 }
-$('s-save').addEventListener('click',()=>{ const ok=saveS(); if(ok) addSysMsg('Settings saved.'); });
+// Neuroticism slider live display
+$('s-mono-neuro').addEventListener('input',()=>{
+  $('s-mono-neuro-val').textContent=$('s-mono-neuro').value+' / 10';
+});
+
+// Load monologue settings from backend config
+async function loadMonologueSettings(){
+  try{
+    const cfg=await api.llmGetConfig();
+    if(!cfg?.monologue) return;
+    const m=cfg.monologue;
+    $('s-mono-enabled').checked  = !!m.enabled;
+    $('s-mono-interval').value   = Math.round((m.intervalMs||60000)/1000);
+    $('s-mono-neuro').value      = m.neuroticism||5;
+    $('s-mono-neuro-val').textContent=(m.neuroticism||5)+' / 10';
+    if(m.provider) $('s-mono-provider').value=m.provider;
+  }catch{}
+}
+
+$('s-save').addEventListener('click', async ()=>{
+  const ok=saveS();
+  if(!ok) return;
+  // Also persist monologue config via llmSetConfig
+  const monoPatch={
+    monologue:{
+      enabled:    $('s-mono-enabled').checked,
+      intervalMs: +$('s-mono-interval').value * 1000,
+      neuroticism:+$('s-mono-neuro').value,
+      provider:   $('s-mono-provider').value,
+    }
+  };
+  await api.llmSetConfig(monoPatch).catch(()=>{});
+  addSysMsg('Settings saved.');
+});
 $('s-opendata').addEventListener('click',()=>api.openDataFolder());
 applyS(getS());
+loadMonologueSettings();
 
 // ── Build connect config ──────────────────────────────────────────────────────
 function buildCfg(){
   const s=getS();
+  // Collect per-task routing map from the AI page selects (if populated)
+  const taskMap={};
+  document.querySelectorAll('.task-sel').forEach(sel=>{ taskMap[sel.dataset.task]=sel.value; });
+
   return {
     bot:{ host:s.host||'localhost',port:s.port||25565,username:s.username||'',version:s.version||'1.21.1',auth:'offline'},
     companion:{ observeIntervalMs:s.observeIntervalMs||10000,talkativeIntervalMs:s.talkativeIntervalMs||45000,
@@ -986,10 +1038,16 @@ function buildCfg(){
     openai:{ apiKey:$('ai-openai-key')?.value||'',model:$('ai-openai-model')?.value||'gpt-4o-mini',
              timeoutMs:+($('ai-openai-timeout')?.value||15000),
              enabled:!!($('ai-openai-key')?.value?.startsWith('sk-'))},
-    hybrid:{ dialogueProvider:$('ai-dialogue-prov')?.value||'hybrid',
-             intentProvider:$('ai-intent-prov')?.value||'ollama',
-             strategy:$('ai-strategy')?.value||'quality_routing',
+    claude:{ apiKey:$('ai-claude-key')?.value||'',model:$('ai-claude-model')?.value||'claude-haiku-4-5-20251001',
+             timeoutMs:+($('ai-claude-timeout')?.value||30000),
+             enabled:!!($('ai-claude-key')?.value?.startsWith('sk-ant-'))},
+    hybrid:{ strategy:$('ai-strategy')?.value||'quality_routing',
              openAiHourlyLimit:+($('ai-hourly')?.value||30)},
+    routing:{ taskMap:Object.keys(taskMap).length?taskMap:{} },
+    monologue:{ enabled:$('s-mono-enabled')?.checked||false,
+                intervalMs:(+($('s-mono-interval')?.value||60))*1000,
+                neuroticism:+($('s-mono-neuro')?.value||5),
+                provider:$('s-mono-provider')?.value||'ollama'},
   };
 }
 
@@ -1010,6 +1068,7 @@ function navTo(page){
   if(page==='character')   loadCharacter();
   if(page==='ai')          loadAISettings();
   if(page==='resources')   loadResourceLimits();
+  if(page==='settings')    loadMonologueSettings();
   if(page==='syslog'){
     bgErrorCount=0;
     const badge=$('syslog-badge');
@@ -1434,48 +1493,87 @@ async function loadAISettings(){
   try{
     const cfg=await api.llmGetConfig();
     if(!cfg) return;
-    if(cfg.ollama){ $('ai-ollama-url').value=cfg.ollama.baseUrl||''; $('ai-ollama-model').value=cfg.ollama.model||''; $('ai-ollama-timeout').value=cfg.ollama.timeoutMs||20000; }
-    if(cfg.openai){ $('ai-openai-key').value=cfg.openai.apiKey==='***set***'?'(already set — type new key to change)':cfg.openai.apiKey||''; $('ai-openai-model').value=cfg.openai.model||''; $('ai-openai-timeout').value=cfg.openai.timeoutMs||15000; }
-    if(cfg.hybrid){ $('ai-dialogue-prov').value=cfg.hybrid.dialogueProvider||'hybrid'; $('ai-intent-prov').value=cfg.hybrid.intentProvider||'ollama'; $('ai-strategy').value=cfg.hybrid.strategy||'quality_routing'; $('ai-hourly').value=cfg.hybrid.openAiHourlyLimit||30; }
+    if(cfg.ollama){
+      $('ai-ollama-url').value     = cfg.ollama.baseUrl||'http://localhost:11434';
+      $('ai-ollama-model').value   = cfg.ollama.model||'llama3.2';
+      $('ai-ollama-timeout').value = cfg.ollama.timeoutMs||20000;
+    }
+    if(cfg.openai){
+      $('ai-openai-key').value     = cfg.openai.apiKey==='***set***'?'(already set — type new key to change)':cfg.openai.apiKey||'';
+      $('ai-openai-model').value   = cfg.openai.model||'gpt-4o-mini';
+      $('ai-openai-timeout').value = cfg.openai.timeoutMs||15000;
+    }
+    if(cfg.claude){
+      $('ai-claude-key').value     = cfg.claude.apiKey==='***set***'?'(already set — type new key to change)':cfg.claude.apiKey||'';
+      $('ai-claude-model').value   = cfg.claude.model||'claude-haiku-4-5-20251001';
+      $('ai-claude-timeout').value = cfg.claude.timeoutMs||30000;
+    }
+    if(cfg.hybrid){
+      $('ai-strategy').value = cfg.hybrid.strategy||'quality_routing';
+      $('ai-hourly').value   = cfg.hybrid.openAiHourlyLimit||30;
+    }
+    if(cfg.routing?.taskMap){
+      document.querySelectorAll('.task-sel').forEach(sel=>{
+        const v=cfg.routing.taskMap[sel.dataset.task];
+        if(v) sel.value=v;
+      });
+    }
     updateAIBadges(cfg);
     refreshAIStats();
   }catch(e){ showErr('ai-err','Config load failed: '+e.message); }
 }
 function updateAIBadges(cfg){
-  const ollamaBadge=$('ollama-badge'); ollamaBadge.textContent='configured'; ollamaBadge.className='badge info';
-  const openAiBadge=$('openai-badge');
-  if(cfg?.openai?.apiKey&&cfg.openai.apiKey!==''){
-    openAiBadge.textContent='configured'; openAiBadge.className='badge ok';
-  } else { openAiBadge.textContent='not configured'; openAiBadge.className='badge'; }
+  // Ollama is always local — always "configured"
+  const ob=$('ollama-badge'); ob.textContent='configured'; ob.className='badge info';
+  // OpenAI
+  const oab=$('openai-badge'), hasOAI=!!(cfg?.openai?.apiKey&&cfg.openai.apiKey!=='');
+  oab.textContent=hasOAI?'configured':'not configured'; oab.className=hasOAI?'badge ok':'badge';
+  // Claude
+  const cab=$('claude-badge'), hasClaude=!!(cfg?.claude?.apiKey&&cfg.claude.apiKey!=='');
+  cab.textContent=hasClaude?'configured':'not configured'; cab.className=hasClaude?'badge ok':'badge';
 }
 async function refreshAIStats(){
   try{
     const st=await api.llmGetStats();
-    if(!st||(!st.ollama&&!st.openai&&!st.errors)){ $('ai-stats').innerHTML='<span class="dim">No activity yet.</span>'; return; }
+    if(!st||(!st.ollama&&!st.openai&&!st.claude&&!st.errors)){
+      $('ai-stats').innerHTML='<span class="dim">No LLM activity yet — connect and talk to the companion.</span>'; return;
+    }
+    const ollamaColor = st.ollamaAvailable ? 'var(--green)' : 'var(--red)';
+    const openAiColor = st.openAiAvailable ? 'var(--green)' : 'var(--text3)';
+    const claudeColor = st.claudeAvailable ? 'var(--green)' : 'var(--text3)';
+    const hourly = st.openAiCallsThisHour!=null ? ` (${st.openAiCallsThisHour}/${st.hourlyLimit||30} this hr)` : '';
     $('ai-stats').innerHTML=`
-      <div style="display:flex;gap:16px;flex-wrap:wrap">
-        <div class="llm-stat"><div class="llm-dot ollama"></div>Ollama calls: <strong>${st.ollama||0}</strong></div>
-        <div class="llm-stat"><div class="llm-dot ${st.openAiAvailable?'openai':'off'}"></div>OpenAI calls: <strong>${st.openai||0}</strong></div>
-        <div class="llm-stat" style="color:var(--yellow)">Fallbacks: <strong>${st.fallbacks||0}</strong></div>
-        <div class="llm-stat" style="color:var(--red)">Errors: <strong>${st.errors||0}</strong></div>
-      </div>
-      <div style="margin-top:8px" class="dim">OpenAI this hour: ${st.openAiCallsThisHour||0} / ${st.hourlyLimit||30} limit &nbsp;·&nbsp;
-        Ollama: <span style="color:${st.ollamaAvailable?'var(--green)':'var(--red)'}">${st.ollamaAvailable?'available':'circuit open'}</span> &nbsp;·&nbsp;
-        OpenAI: <span style="color:${st.openAiAvailable?'var(--green)':'var(--text3)'}">${st.openAiAvailable?'available':'unavailable'}</span>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;align-items:center">
+        <div class="llm-stat"><div class="llm-dot ollama"></div><strong>${st.ollama||0}</strong>&thinsp;Ollama &nbsp;<span style="color:${ollamaColor};font-size:11px">${st.ollamaAvailable?'up':'circuit open'}</span></div>
+        <div class="llm-stat"><div class="llm-dot openai"></div><strong>${st.openai||0}</strong>&thinsp;OpenAI${hourly} &nbsp;<span style="color:${openAiColor};font-size:11px">${st.openAiAvailable?'up':'off'}</span></div>
+        <div class="llm-stat"><div class="llm-dot" style="background:#cc7722"></div><strong>${st.claude||0}</strong>&thinsp;Claude &nbsp;<span style="color:${claudeColor};font-size:11px">${st.claudeAvailable?'up':'off'}</span></div>
+        ${st.fallbacks?`<div class="llm-stat" style="color:var(--yellow)">⚠ ${st.fallbacks} fallback(s)</div>`:''}
+        ${st.errors?`<div class="llm-stat" style="color:var(--red)">✕ ${st.errors} error(s)</div>`:''}
       </div>`;
   }catch{}
 }
 $('ai-save').addEventListener('click',async()=>{
-  const key=$('ai-openai-key').value.trim();
+  const openaiKey=$('ai-openai-key').value.trim();
+  const claudeKey=$('ai-claude-key').value.trim();
+  const taskMap={};
+  document.querySelectorAll('.task-sel').forEach(sel=>{ taskMap[sel.dataset.task]=sel.value; });
   const patch={
-    ollama:{ baseUrl:$('ai-ollama-url').value, model:$('ai-ollama-model').value, dialogueModel:$('ai-ollama-model').value, timeoutMs:+$('ai-ollama-timeout').value },
-    openai:{ apiKey: key.includes('(already set')?undefined:key, model:$('ai-openai-model').value, timeoutMs:+$('ai-openai-timeout').value },
-    hybrid:{ dialogueProvider:$('ai-dialogue-prov').value, intentProvider:$('ai-intent-prov').value, strategy:$('ai-strategy').value, openAiHourlyLimit:+$('ai-hourly').value },
+    ollama:{ baseUrl:$('ai-ollama-url').value, model:$('ai-ollama-model').value,
+             dialogueModel:$('ai-ollama-model').value, timeoutMs:+$('ai-ollama-timeout').value },
+    openai:{ apiKey:openaiKey.includes('(already set')?undefined:openaiKey,
+             model:$('ai-openai-model').value, timeoutMs:+$('ai-openai-timeout').value },
+    claude:{ apiKey:claudeKey.includes('(already set')?undefined:claudeKey,
+             model:$('ai-claude-model').value, timeoutMs:+$('ai-claude-timeout').value },
+    hybrid:{ strategy:$('ai-strategy').value, openAiHourlyLimit:+$('ai-hourly').value },
+    routing:{ taskMap },
   };
   if(patch.openai.apiKey===undefined) delete patch.openai.apiKey;
+  if(patch.claude.apiKey===undefined) delete patch.claude.apiKey;
   const r=await api.llmSetConfig(patch).catch(e=>({ok:false,error:e.message}));
-  if(r?.ok){ addSysMsg('AI settings saved.'); updateAIBadges({openai:{apiKey:key||undefined}}); }
-  else showErr('ai-err','Save failed: '+(r?.error||'?'));
+  if(r?.ok){
+    addSysMsg('AI settings saved.');
+    updateAIBadges({ openai:{apiKey:openaiKey||undefined}, claude:{apiKey:claudeKey||undefined} });
+  } else showErr('ai-err','Save failed: '+(r?.error||'?'));
 });
 $('ollama-test').addEventListener('click',async()=>{
   $('ollama-test').disabled=true; $('ollama-test').textContent='Testing…';
@@ -1494,6 +1592,17 @@ $('openai-test').addEventListener('click',async()=>{
   el.className='test-result '+(r.ok?'ok':'fail');
   $('openai-badge').textContent=r.ok?'verified':'error'; $('openai-badge').className='badge '+(r.ok?'ok':'stale');
   $('openai-test').disabled=false; $('openai-test').textContent='Test';
+});
+
+$('claude-test').addEventListener('click',async()=>{
+  const key=$('ai-claude-key').value.trim();
+  if(!key.startsWith('sk-ant-')){ const el=$('claude-result'); el.textContent='Claude API key must start with sk-ant-'; el.className='test-result fail'; return; }
+  $('claude-test').disabled=true; $('claude-test').textContent='Testing…';
+  const r=await api.llmTestClaude(key,$('ai-claude-model').value).catch(e=>({ok:false,error:e.message}));
+  const el=$('claude-result'); el.textContent=r.ok?`✓ Claude OK — model: ${r.model||'?'}, response: "${r.response||''}"`:`✗ ${r.error||'Failed'}`;
+  el.className='test-result '+(r.ok?'ok':'fail');
+  $('claude-badge').textContent=r.ok?'verified':'error'; $('claude-badge').className='badge '+(r.ok?'ok':'stale');
+  $('claude-test').disabled=false; $('claude-test').textContent='Test';
 });
 
 // ── Character ─────────────────────────────────────────────────────────────────

@@ -27,6 +27,20 @@ const BotManager = require('../src/botManager');
 
 nativeTheme.themeSource = 'dark';
 
+/** Shallow-deep merge: objects are merged one level down, primitives overwritten. */
+function _deepMerge(base, patch) {
+  if (!patch || typeof patch !== 'object') return base;
+  const out = { ...base };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object') {
+      out[k] = { ...base[k], ...v };
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 const LOG_FILE   = path.join(DATA_DIR, 'activity-log.json');
 const PREFS_FILE = path.join(DATA_DIR, 'ui-prefs.json');
 
@@ -222,7 +236,15 @@ ipcMain.handle('bot:offlineChat', async (_, msg, cfg) => {
 
 ipcMain.handle('llm:getConfig', () => {
   try {
-    const src = bot?.cfg ?? require('../src/config');
+    let src;
+    if (bot) {
+      src = bot.cfg;
+    } else {
+      // Merge saved LLM prefs (from previous llmSetConfig calls) over defaults
+      const defaults = require('../src/config');
+      const saved    = loadPrefs().llmConfig || {};
+      src = _deepMerge(defaults, saved);
+    }
     return {
       ollama:    src.ollama,
       openai:    { ...src.openai,  apiKey: src.openai?.apiKey  ? '***set***' : '' },

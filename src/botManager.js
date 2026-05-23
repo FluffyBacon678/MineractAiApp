@@ -410,6 +410,11 @@ class BotManager extends EventEmitter {
     }
 
     if (intentResult.status === 'fulfilled' && intentResult.value) {
+      // Push raw player message into conversation buffer so the assistant has
+      // proper context — but only for actions we'll actually respond to.
+      if (intentResult.value.action !== 'IGNORE') {
+        this.convBuffer?.push('user', message);
+      }
       await this._handleIntent(intentResult.value, username, message, { isDirectAddress, isQuestion }).catch(e => console.error('[BotManager] intent:', e.message));
     }
   }
@@ -504,6 +509,11 @@ class BotManager extends EventEmitter {
         this.stateMachine?.setState('WORKING');
         const locationName = responsePrompt || null;
         await this.workers.start('farm', { locationName });
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} asked you to start farming. Confirm briefly.`, ctx);
+          this._safeChat(ackText || "I'll get to farming.");
+        }
         break;
       }
 
@@ -512,6 +522,11 @@ class BotManager extends EventEmitter {
         if (!perm.allowed) { this._safeChat(`I can't patrol — ${perm.reason}`); break; }
         this.stateMachine?.setState('WORKING');
         await this.workers.start('patrol', { locationName: responsePrompt || null });
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} asked you to patrol. Confirm briefly.`, ctx);
+          this._safeChat(ackText || "I'll patrol the area.");
+        }
         break;
       }
 
@@ -520,13 +535,22 @@ class BotManager extends EventEmitter {
         if (!perm.allowed) { this._safeChat(`I can't collect — ${perm.reason}`); break; }
         this.stateMachine?.setState('WORKING');
         await this.workers.start('collect', { locationName: responsePrompt || null });
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} asked you to collect nearby items. Confirm briefly.`, ctx);
+          this._safeChat(ackText || "I'll collect what's nearby.");
+        }
         break;
       }
 
       case 'WORK_STOP':
         await this.workers?.stop();
         this.stateMachine?.setState('WAITING');
-        if (shouldRespond) this._safeChat("Stopping what I was doing.");
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} asked you to stop working. Confirm briefly.`, ctx);
+          this._safeChat(ackText || "Stopping what I was doing.");
+        }
         break;
 
       case 'GO_TO': {
@@ -561,12 +585,20 @@ class BotManager extends EventEmitter {
 
       case 'BE_TALKATIVE':
         this.stateMachine?.setTalkative(true);
-        if (shouldRespond) this._safeChat("I'll speak my mind more.");
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} wants you to be more talkative and expressive. Confirm briefly.`, ctx);
+          this._safeChat(ackText || "I'll speak my mind more.");
+        }
         break;
 
       case 'BE_QUIET':
         this.stateMachine?.setTalkative(false);
-        if (shouldRespond) this._safeChat("I'll keep quiet.");
+        if (shouldRespond) {
+          const { text: ackText } = await this.dialogue.acknowledge(
+            `${username} wants you to be quieter and less chatty. Confirm briefly.`, ctx);
+          this._safeChat(ackText || "I'll keep quiet.");
+        }
         break;
 
       case 'RESPOND': {

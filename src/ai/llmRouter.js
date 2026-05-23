@@ -184,7 +184,7 @@ class LLMRouter extends EventEmitter {
     const fallbackTier = tier === 'deep' ? 'standard' : 'quick';
     if (fallbackTier !== tier) {
       const fb = this._providerForTier(fallbackTier);
-      const ft = await this._call(fb.provider, { ...opts, model: fb.model }, messages, opts);
+      const ft = await this._call(fb.provider, messages, { ...opts, model: fb.model });
       if (ft !== null) {
         this.stats.fallbacks++;
         return { text: ft, provider: fb.provider, model: fb.model };

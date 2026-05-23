@@ -82,9 +82,10 @@ class Dialogue extends EventEmitter {
 
     const clean = this._clean(text);
 
-    // Push exchange into buffer AFTER getting a response
+    // Push assistant response into buffer AFTER getting a response.
+    // The raw player message is pushed by botManager._onChat() so we never
+    // store the formatted internal prompt string as a "user" turn.
     if (this.buffer && clean) {
-      this.buffer.push('user',      prompt);
       this.buffer.push('assistant', clean);
 
       // Trigger summarisation if buffer is full

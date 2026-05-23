@@ -148,6 +148,7 @@ ipcMain.handle('bot:connect', (_, cfg) => {
     bot.on('worker:done',   e => fwd('bot:worker',      { event: 'done', ...e }));
     bot.on('worker:error',  e => fwd('bot:worker',      { event: 'error', ...e }));
     bot.on('worker:progress',e=> fwd('bot:worker',      { event: 'progress', ...e }));
+    bot.on('worker:stop',   e => fwd('bot:worker',      { event: 'stop', ...e }));
     bot.on('worker:threat', e => fwd('bot:worker',      { event: 'threat', ...e }));
     bot.on('bgevent',       e => fwd('bot:bgevent',     e));
     bot.on('log',           l => appendLog(l));

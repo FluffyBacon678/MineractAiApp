@@ -296,6 +296,12 @@ class BotManager extends EventEmitter {
       this._bgEvent('state', 'error', `Task failed: ${e.label || e.type || 'task'}`, e.error || null);
     });
     this.workers.on('worker:progress', e => this.emit('worker:progress', e));
+    this.workers.on('worker:stop',     e => {
+      this._setStatus('idle');
+      this.emit('worker:stop', e);
+      this.stateMachine?.setState('WAITING');
+      this._bgEvent('state', 'info', `Task stopped: ${e.label || 'task'}`);
+    });
     this.workers.on('worker:threat',   e => {
       this.emit('worker:threat', e);
       this._bgEvent('state', 'warn', `Threat detected near ${e.location || 'task area'}`);
@@ -307,7 +313,7 @@ class BotManager extends EventEmitter {
     this._bgEvent('state', 'info', `Mode activated: ${defaultMode}`);
     this._stateChangedAt = Date.now();
     this.monologue.start(() => ({
-      state:        this.stateMachine?.state || 'UNKNOWN',
+      state:        this.stateMachine?.currentState || 'UNKNOWN',
       task:         this.workers?.currentTask?.type || null,
       stateTimeSec: Math.round((Date.now() - (this._stateChangedAt || Date.now())) / 1000),
       recentEvent:  this._lastMonologueEvent || null,

@@ -146,23 +146,18 @@ class FarmWorker extends WorkerBase {
     const ripe = [];
     try {
       for (const [cropName, meta] of Object.entries(CROPS)) {
-        let block;
-        let searchPos = centre;
-        while (true) {
-          block = this.bot.findBlock({
-            matching: b => b.name === cropName && (b.getProperties?.().age ?? 0) >= meta.ripAge,
-            maxDistance: radius,
-            point: searchPos,
-          });
-          if (!block) break;
-          ripe.push(block);
-          // Look past this block for more
-          searchPos = block.position.offset(1, 0, 0);
-          if (ripe.length > 200) break; // safety cap
+        const positions = this.bot.findBlocks({
+          matching:    b => b.name === cropName && (b.getProperties?.().age ?? 0) >= meta.ripAge,
+          maxDistance: radius,
+          count:       200,
+        });
+        for (const pos of positions) {
+          const block = this.bot.blockAt(pos);
+          if (block) ripe.push(block);
         }
       }
     } catch (err) {
-      console.warn('[FarmWorker] findBlock error:', err.message);
+      console.warn('[FarmWorker] findBlocks error:', err.message);
     }
     return ripe;
   }

@@ -484,6 +484,7 @@ class BotManager extends EventEmitter {
 
   _scheduleReconnect() {
     this._clearReconnect();
+    this._setStatus('reconnecting…');
     this._reconnectTimer = setTimeout(() => {
       if (!this.connected) { this.emit('log', 'Reconnecting…'); this.connect(); }
     }, 8_000);

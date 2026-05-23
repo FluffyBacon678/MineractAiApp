@@ -259,7 +259,7 @@ class WorldMemory extends EventEmitter {
       isStale:          stale,
       isWarning:        warning,
       staleSummary:     _staleSummary(loc.lastObserved),
-      freshnessBadge:   stale ? 'stale' : warning ? 'warning' : 'fresh',
+      freshnessBadge:   stale ? 'stale' : warning ? 'warn' : 'fresh',
       autoRefresh:      catCfg.autoRefresh  ?? true,
       alwaysVerify:     catCfg.alwaysVerify ?? false,
     };

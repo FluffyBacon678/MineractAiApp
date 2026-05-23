@@ -913,7 +913,7 @@ $('btn-dis').addEventListener('click',async()=>{
 // ── Status ────────────────────────────────────────────────────────────────────
 function setStatus(s){
   isConnected=!/disconnected|connecting|error/.test(s);
-  const col=s==='disconnected'||s==='error'?'red':s==='connecting'?'yellow':'green';
+  const col=s==='disconnected'||s==='error'?'red':/connecting/.test(s)?'yellow':'green';
   $('sb-stxt').textContent=s; $('dash-status').textContent=s.charAt(0).toUpperCase()+s.slice(1); $('dash-state').textContent=s;
   ['sb-dot','tb-dot'].forEach(id=>{ const e=$(id); e.className=id==='sb-dot'?'sdot':''; e.classList.add(col); });
   $('btn-con').style.display=isConnected?'none':''; $('btn-dis').style.display=isConnected?'':'none'; $('btn-con').disabled=false;

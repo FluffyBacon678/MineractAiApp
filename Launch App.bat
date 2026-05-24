@@ -26,12 +26,26 @@ if not exist "node_modules\" (
   echo.
 )
 
-echo  Launching Electron app...
-echo.
-npm start
+:: Create data directory if needed
+if not exist "data\" mkdir data
 
-if errorlevel 1 (
+echo  Launching Electron app...
+echo  If you see an error below, it will also be saved to: launch-error.log
+echo.
+
+:: Run and tee output to log file, always pause at end
+node_modules\.bin\electron.cmd . > launch-error.log 2>&1
+set EXIT_CODE=%errorlevel%
+
+type launch-error.log
+
+if %EXIT_CODE% neq 0 (
   echo.
-  echo  [ERROR] App exited with an error. See above for details.
-  pause
+  echo  -----------------------------------------------
+  echo  [ERROR] App exited with code %EXIT_CODE%
+  echo  Full log saved to: launch-error.log
+  echo  -----------------------------------------------
 )
+
+echo.
+pause

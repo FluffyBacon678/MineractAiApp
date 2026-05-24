@@ -54,7 +54,8 @@ class BotManager extends EventEmitter {
     this.social.on('social:changed', e => this.emit('social:changed', e));
 
     // Conversation continuity — persists across reconnects
-    this.convBuffer  = new ConversationBuffer(this.cfg.conversation?.maxTurns ?? 20);
+    const companionName = this.cfg.companion?.name || this.character.getName() || 'Bud';
+    this.convBuffer  = new ConversationBuffer(this.cfg.conversation?.maxTurns ?? 20, companionName);
 
     // Plan executor — executes deep-tier multi-step plans
     this.planExec    = new PlanExecutor(this.cfg.planning || {});
@@ -90,8 +91,21 @@ class BotManager extends EventEmitter {
 
     // Internal monologue
     this.monologue = new Monologue(this.cfg, this.router);
-    this.monologue.on('monologue:thought', ({ thought }) => this.emit('log', `[inner] ${thought}`));
-    this.monologue.on('monologue:adjust',  ({ adjustment }) => this.emit('log', `[adjust] ${adjustment}`));
+    this.monologue.on('monologue:thought', ({ thought }) => {
+      this.emit('log', `[inner] ${thought}`);
+      this._bgEvent('state', 'info', `[inner] ${thought}`);
+    });
+    this.monologue.on('monologue:adjust',  ({ adjustment }) => {
+      this.emit('log', `[adjust] ${adjustment}`);
+      log.bot('BotManager', `Monologue adjustment: ${adjustment}`);
+      this._bgEvent('state', 'warn', `Monologue: ${adjustment}`);
+      // Act on common adjustment types
+      const a = adjustment.toLowerCase();
+      if (/quiet|less talk|stop talk|silent/.test(a))       this.stateMachine?.setTalkative(false);
+      else if (/talk|chatty|more expressive|speak/.test(a)) this.stateMachine?.setTalkative(true);
+      else if (/wait|stay|stop moving/.test(a))             this.stateMachine?.setState('WAITING');
+      else if (/wander|loiter|explore/.test(a))             this.stateMachine?.setState('LOITERING');
+    });
 
     // Cross-system wiring
     this.resources.on('profile:changed', ({ profile }) => {
@@ -319,7 +333,7 @@ class BotManager extends EventEmitter {
         `${tokens} token budget`
       );
     });
-    this.observer     = new Observer(this.bot, this.cfg, this.memory);  // pass memory for workstation auto-detection
+    this.observer     = new Observer(this.bot, this.cfg, this.memory, this.dialogue);  // pass memory + dialogue
     this.stateMachine = new StateMachine(this.bot, this.cfg);
     this.workers      = new WorkerManager(this.bot, this.cfg, this.memory, this.permissions);
 
@@ -450,7 +464,7 @@ class BotManager extends EventEmitter {
             coordinates: { x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z) },
             notes:       mi.notes ? [mi.notes] : [],
           });
-        } catch (err) { console.error('[BotManager] memory.save:', err.message); break; }
+        } catch (err) { log.error('BotManager', `memory.save: ${err.message}`); break; }
         await delay(rd);
         this._safeChat(`I'll remember this as ${loc.name}.`);
         this.memory.logAction({ type: 'memory_saved', name: loc.name, by: username });
@@ -632,7 +646,7 @@ class BotManager extends EventEmitter {
                 ? this._makePlanConfirmFn(username)
                 : null;
               this.planExec.execute(steps, confirmFn).catch(e =>
-                console.error('[BotManager] Plan execution error:', e.message)
+                log.error('BotManager', `Plan execution error: ${e.message}`)
               );
             }
           }
@@ -641,7 +655,7 @@ class BotManager extends EventEmitter {
       }
 
       case 'IGNORE': break;
-      default: console.warn('[BotManager] Unhandled action:', action);
+      default: log.warn('BotManager', `Unhandled action: ${action}`);
     }
   }
 
@@ -660,7 +674,7 @@ class BotManager extends EventEmitter {
       this._setStatus(`going to ${location.name}`);
       this.memory.markVisited(location.id);
     } catch (err) {
-      console.error('[BotManager] Navigation error:', err.message);
+      log.error('BotManager', `Navigation error: ${err.message}`);
       this._safeChat("I had trouble navigating there.");
     }
   }
@@ -676,7 +690,7 @@ class BotManager extends EventEmitter {
   _safeChat(text) {
     if (!this.connected || !this.bot || !text) return;
     try { this.bot.chat(String(text).slice(0, 256)); }
-    catch (err) { console.warn('[BotManager] chat error:', err.message); }
+    catch (err) { log.warn('BotManager', `chat error: ${err.message}`); }
   }
 
   _buildContext(username, flags = {}) {

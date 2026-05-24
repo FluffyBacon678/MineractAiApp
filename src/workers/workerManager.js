@@ -6,6 +6,7 @@
  */
 
 const EventEmitter  = require('events');
+const log           = require('../logger');
 const FarmWorker    = require('./farmWorker');
 const PatrolWorker  = require('./patrolWorker');
 const CollectWorker = require('./collectWorker');
@@ -58,7 +59,7 @@ class WorkerManager extends EventEmitter {
         break;
       }
       default:
-        console.warn('[WorkerManager] Unknown worker type:', workerType);
+        log.warn('WorkerManager', `Unknown worker type: ${workerType}`);
         return false;
     }
 
@@ -74,7 +75,7 @@ class WorkerManager extends EventEmitter {
 
     this._active = worker;
     worker.start().catch(err => {
-      console.error('[WorkerManager] Unhandled worker error:', err.message);
+      log.error('WorkerManager', `Unhandled worker error: ${err.message}`);
       this._active = null;
       this._label  = null;
     });

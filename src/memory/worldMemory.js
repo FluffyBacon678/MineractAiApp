@@ -9,6 +9,7 @@ const fs   = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const EventEmitter = require('events');
+const log          = require('../logger');
 const { StalenessConfig } = require('./stalenessConfig');
 
 const { resolveDataFile } = require('../paths');
@@ -108,7 +109,7 @@ class WorldMemory extends EventEmitter {
 
   update(ref, patch) {
     const loc = this._resolve(ref);
-    if (!loc) { console.warn('[WorldMemory] update(): ref not found:', ref); return null; }
+    if (!loc) { log.warn('WorldMemory', `update(): ref not found: ${ref}`); return null; }
     Object.assign(loc, patch, { lastObserved: Date.now() });
     this._markDirty('memory_updated', loc);
     return loc;
@@ -116,7 +117,7 @@ class WorldMemory extends EventEmitter {
 
   forget(ref) {
     const loc = this._resolve(ref);
-    if (!loc) { console.warn('[WorldMemory] forget(): ref not found:', ref); return false; }
+    if (!loc) { log.warn('WorldMemory', `forget(): ref not found: ${ref}`); return false; }
     delete this.data.locations[loc.id];
     this._markDirty('memory_deleted', { name: loc.name });
     return true;
@@ -313,7 +314,7 @@ class WorldMemory extends EventEmitter {
         return parsed;
       }
     } catch (err) {
-      console.error('[WorldMemory] Load failed, starting fresh:', err.message);
+      log.error('WorldMemory', `Load failed, starting fresh: ${err.message}`);
     }
     return empty;
   }
@@ -324,7 +325,7 @@ class WorldMemory extends EventEmitter {
       fs.writeFileSync(DATA_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
       this._dirty = false;
     } catch (err) {
-      console.error('[WorldMemory] Save failed:', err.message);
+      log.error('WorldMemory', `Save failed: ${err.message}`);
     }
   }
 }

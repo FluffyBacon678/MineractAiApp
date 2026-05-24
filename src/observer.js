@@ -1,5 +1,7 @@
 'use strict';
 
+const log = require('./logger');
+
 /**
  * Observer — scans the Minecraft world and drives ambient comments.
  * Pure read-only. Never triggers movement or world modification.
@@ -38,10 +40,11 @@ const WORKSTATION_TAGS = {
 };
 
 class Observer {
-  constructor(bot, config, memory = null) {
+  constructor(bot, config, memory = null, dialogue = null) {
     this.bot             = bot;
     this.config          = config;
-    this.memory          = memory;   // WorldMemory — optional, for auto-detection
+    this.memory          = memory;    // WorldMemory — optional, for auto-detection
+    this.dialogue        = dialogue;  // Dialogue — optional, for LLM ambient comments
     this.stateMachine    = null;
     this.lastObservation = 'a quiet area';
 
@@ -68,7 +71,7 @@ class Observer {
     if (this._currentProfile === profile) return;
     this._currentProfile = profile;
     if (this._isRunning) {
-      console.log(`[Observer] Profile → ${profile}, restarting timers`);
+      log.bot('Observer', `Profile → ${profile}, restarting timers`);
       this._startTimers(); // clears old timers and starts new ones
     }
   }
@@ -86,7 +89,7 @@ class Observer {
       this.lastObservation = obs;
       return obs;
     } catch (err) {
-      console.warn('[Observer] describeEnvironment error:', err.message);
+      log.warn('Observer', `describeEnvironment error: ${err.message}`);
       return 'I had trouble reading the surroundings.';
     }
   }
@@ -110,7 +113,7 @@ class Observer {
       try {
         this.lastObservation = this._buildObservation();
       } catch (err) {
-        console.warn('[Observer] Scan error:', err.message);
+        log.warn('Observer', `Scan error: ${err.message}`);
       }
     }, scanMs);
 
@@ -121,12 +124,25 @@ class Observer {
       if (this._currentProfile === 'lightweight') return;
 
       try {
-        const comment = this._pickComment();
+        const obs = this.lastObservation;
+        let comment;
+
+        if (this.dialogue) {
+          // Use LLM for in-character ambient speech
+          const ctx = { state: this.stateMachine?.currentState || 'idle', environment: obs };
+          const prompt = `You notice: ${obs}. Make one short, natural observation (1 sentence). Stay in character.`;
+          const { text } = await this.dialogue.ambient(prompt, ctx).catch(() => ({ text: null }));
+          comment = text;
+        } else {
+          // Fallback: hardcoded strings when no dialogue available
+          comment = this._pickComment();
+        }
+
         if (!comment) return;
         await delay(1000 + Math.random() * 2500);
         if (this.bot?.entity && this._isRunning) this.bot.chat(comment);
       } catch (err) {
-        console.warn('[Observer] Talk tick error:', err.message);
+        log.warn('Observer', `Talk tick error: ${err.message}`);
       }
     }, talkMs);
   }

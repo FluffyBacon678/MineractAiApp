@@ -15,6 +15,7 @@
  */
 
 const EventEmitter = require('events');
+const log          = require('../logger');
 
 const SYSTEM = `You are the inner voice of a Minecraft AI companion named {NAME}.
 You briefly reflect on whether your current behaviour is correct and productive.
@@ -44,7 +45,7 @@ class Monologue extends EventEmitter {
     const interval = Math.max(cfg.intervalMs || 60_000, 15_000);
     this._getContext = getContext;
     this._timer = setInterval(() => this._tick(), interval);
-    console.log(`[Monologue] Started — interval ${interval}ms, neuroticism ${cfg.neuroticism ?? 5}/10`);
+    log.bot('Monologue', `Started — interval ${interval}ms, neuroticism ${cfg.neuroticism ?? 5}/10`);
   }
 
   stop() {
@@ -106,10 +107,10 @@ class Monologue extends EventEmitter {
 
     if (thought.startsWith('ADJUST:')) {
       const adjustment = thought.slice(7).trim();
-      console.log(`[Monologue] ADJUST: ${adjustment}`);
+      log.bot('Monologue', `ADJUST: ${adjustment}`);
       this.emit('monologue:adjust', { adjustment, context: ctx });
     } else {
-      console.log(`[Monologue] "${thought}"`);
+      log.bot('Monologue', `thought: "${thought}"`);
     }
   }
 }

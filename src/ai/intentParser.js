@@ -1,5 +1,7 @@
 'use strict';
 
+const log = require('../logger');
+
 /**
  * IntentParser — classifies player chat into a structured intent.
  * Always uses Ollama (fast, structured output, no need for cloud quality).
@@ -68,18 +70,18 @@ class IntentParser {
       const intent = JSON.parse(clean);
 
       if (!VALID_ACTIONS.has(intent.action)) {
-        console.warn(`[IntentParser] Unknown action "${intent.action}" — ignoring`);
+        log.warn('IntentParser', `Unknown action "${intent.action}" — ignoring`);
         return null;
       }
 
       const confidence = Number(intent.confidence) || 0;
       if (confidence < 0.4) return null;
 
-      console.log(`[IntentParser] "${message}" → ${intent.action} (${confidence.toFixed(2)})`);
+      log.debug('IntentParser', `"${message.slice(0,60)}" → ${intent.action} (${confidence.toFixed(2)})`);
       return intent;
 
     } catch (err) {
-      console.warn('[IntentParser] JSON parse failed:', err.message, '|', raw?.slice(0, 80));
+      log.warn('IntentParser', `JSON parse failed: ${err.message}`, raw?.slice(0, 80));
       return null;
     }
   }

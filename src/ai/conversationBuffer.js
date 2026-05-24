@@ -11,11 +11,14 @@
  */
 
 class ConversationBuffer {
-  constructor(maxTurns = 20) {
-    this.maxTurns = Math.max(4, maxTurns);
-    this._turns   = [];    // [{role:'user'|'assistant', content, ts}]
-    this._summary = null;  // compressed summary of older turns
+  constructor(maxTurns = 20, companionName = 'Bud') {
+    this.maxTurns      = Math.max(4, maxTurns);
+    this.companionName = companionName;
+    this._turns        = [];   // [{role:'user'|'assistant', content, ts}]
+    this._summary      = null; // compressed summary of older turns
   }
+
+  updateMaxTurns(n) { this.maxTurns = Math.max(4, n); }
 
   // ── Write ─────────────────────────────────────────────────────────────────
 
@@ -39,8 +42,6 @@ class ConversationBuffer {
     this._turns  = [];
     this._summary = null;
   }
-
-  updateMaxTurns(n) { this.maxTurns = Math.max(4, n); }
 
   // ── Read ──────────────────────────────────────────────────────────────────
 
@@ -68,7 +69,8 @@ class ConversationBuffer {
   getOldestHalfText() {
     const half  = Math.floor(this._turns.length / 2);
     const chunk = this._turns.slice(0, half);
-    return chunk.map(t => `${t.role === 'user' ? 'Player' : 'Bud'}: ${t.content}`).join('\n');
+    const name  = this.companionName || 'Bud';
+    return chunk.map(t => `${t.role === 'user' ? 'Player' : name}: ${t.content}`).join('\n');
   }
 }
 

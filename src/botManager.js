@@ -157,9 +157,14 @@ class BotManager extends EventEmitter {
       log.error('BotManager', `Chat handler threw for message from ${u}`, e.message);
     }));
     this.bot.on('error',    e  => {
-      log.error('BotManager', `Mineflayer error: ${e.message}`);
-      this.emit('error', e.message);
-      this._bgEvent('connection', 'error', `Connection error: ${e.message}`);
+      // e.message is often empty for socket errors; the detail is in e.code/address/port
+      const errMsg = e?.message
+        || (e?.code && e?.address ? `${e.code} ${e.address}:${e.port}` : null)
+        || e?.code
+        || String(e);
+      log.error('BotManager', `Mineflayer error: ${errMsg}`);
+      this.emit('error', errMsg);
+      this._bgEvent('connection', 'error', `Connection error: ${errMsg}`);
     });
     this.bot.on('end',      r  => this._onEnd(r));
     this.bot.on('kicked',   r  => {

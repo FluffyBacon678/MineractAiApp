@@ -86,9 +86,16 @@ function saveLog() {
 }
 
 function appendLog(entry) {
+  // Compute msg first, then place it AFTER the spread so it is never
+  // overwritten by a falsy entry.msg (e.g. empty string from error events).
+  const computedMsg = typeof entry === 'string'
+    ? entry
+    : String(entry.msg || entry.message || entry.code || JSON.stringify(entry)).slice(0, 200);
+
   const record = typeof entry === 'string'
-    ? { at: Date.now(), msg: entry }
-    : { at: Date.now(), msg: String(entry.msg || entry.message || JSON.stringify(entry)).slice(0,200), ...entry };
+    ? { at: Date.now(), msg: computedMsg }
+    : { at: Date.now(), ...entry, msg: computedMsg };  // msg last → always wins
+
   persistedLog.push(record);
   saveLog();
   win?.webContents?.send('bot:log', record);

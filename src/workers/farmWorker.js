@@ -8,6 +8,7 @@
  * Reports counts to chat and memory.
  */
 
+const log        = require('../logger');
 const WorkerBase = require('./workerBase');
 
 // Crop metadata: block name, ripe age, seed item, replant item
@@ -117,7 +118,7 @@ class FarmWorker extends WorkerBase {
 
       } catch (err) {
         failed++;
-        console.warn(`[FarmWorker] Block error at ${block.position}:`, err.message);
+        log.warn('FarmWorker', `Block error at ${block.position}: ${err.message}`);
         // Continue to next block rather than aborting
       }
 
@@ -146,23 +147,18 @@ class FarmWorker extends WorkerBase {
     const ripe = [];
     try {
       for (const [cropName, meta] of Object.entries(CROPS)) {
-        let block;
-        let searchPos = centre;
-        while (true) {
-          block = this.bot.findBlock({
-            matching: b => b.name === cropName && (b.getProperties?.().age ?? 0) >= meta.ripAge,
-            maxDistance: radius,
-            point: searchPos,
-          });
-          if (!block) break;
-          ripe.push(block);
-          // Look past this block for more
-          searchPos = block.position.offset(1, 0, 0);
-          if (ripe.length > 200) break; // safety cap
+        const positions = this.bot.findBlocks({
+          matching:    b => b.name === cropName && (b.getProperties?.().age ?? 0) >= meta.ripAge,
+          maxDistance: radius,
+          count:       200,
+        });
+        for (const pos of positions) {
+          const block = this.bot.blockAt(pos);
+          if (block) ripe.push(block);
         }
       }
     } catch (err) {
-      console.warn('[FarmWorker] findBlock error:', err.message);
+      log.warn('FarmWorker', `findBlocks error: ${err.message}`);
     }
     return ripe;
   }
@@ -185,7 +181,7 @@ class FarmWorker extends WorkerBase {
         setTimeout(() => { clearInterval(check); resolve(); }, 20_000); // 20s timeout
       });
     } catch (err) {
-      console.warn('[FarmWorker] Navigation error:', err.message);
+      log.warn('FarmWorker', `Navigation error: ${err.message}`);
     }
   }
 
@@ -218,7 +214,10 @@ class FarmWorker extends WorkerBase {
       const groundBlock = this.bot.blockAt(pos.offset(0, -1, 0));
       if (!groundBlock) return false;
 
-      await this.bot.placeBlock(groundBlock, pos.offset(0, 1, 0).minus(groundBlock.position));
+      // Face vector must be a unit vector pointing to the face we're placing on.
+      // We're placing on the TOP face of the farmland block → (0, 1, 0).
+      const Vec3 = require('vec3');
+      await this.bot.placeBlock(groundBlock, new Vec3(0, 1, 0));
       return true;
     } catch {
       return false; // placeBlock can throw if position is occupied/wrong — just skip

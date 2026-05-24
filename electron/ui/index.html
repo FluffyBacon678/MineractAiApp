@@ -214,6 +214,8 @@ input.tsl{accent-color:var(--accent);cursor:pointer;width:100%;margin-top:5px}
 .tag.storage{background:#2a2510;color:var(--yellow)}
 .tag.village,.tag.animal_pen{background:#1e1230;color:var(--purple)}
 .tag.waypoint,.tag.poi{background:#1a2535;color:var(--text2)}
+.tag.bed{background:#2a1a30;color:var(--pink)}
+.tag.workstation{background:#1a2a25;color:var(--teal)}
 
 /* ── Freshness bar ── */
 .fbar{height:3px;border-radius:2px;background:var(--bg3);margin-top:4px;overflow:hidden}
@@ -299,6 +301,69 @@ hr.rule{border:none;border-top:1px solid var(--border);margin:14px 0}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var(--teal);
   background:var(--bg2);padding:1px 5px;border-radius:3px}
+
+/* ── Toggle switch (used in Settings — monologue enable) ── */
+.toggle-wrap{display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0}
+.toggle-wrap input{display:none}
+.toggle{width:38px;height:22px;background:var(--bg3);border-radius:11px;position:relative;
+  transition:background .2s;border:1px solid var(--border2)}
+.toggle::before{content:'';position:absolute;width:16px;height:16px;border-radius:50%;
+  background:var(--text3);top:2px;left:2px;transition:.2s}
+.toggle-wrap input:checked+.toggle{background:var(--accent);border-color:var(--accent)}
+.toggle-wrap input:checked+.toggle::before{transform:translateX(16px);background:#fff}
+
+/* ── Per-task routing rows ── */
+.task-row{display:flex;flex-direction:column;gap:3px;padding:5px 0}
+.task-sel{width:100%;font-size:11.5px;padding:4px 7px}
+
+/* ── Social battery bar ── */
+.social-bar-outer{height:13px;background:var(--bg3);border-radius:7px;overflow:hidden;flex:1}
+.social-bar-fill{height:100%;border-radius:7px;transition:width .9s ease,background .9s ease;width:100%}
+.social-bar-row{display:flex;align-items:center;gap:10px;margin-top:4px}
+.social-bar-label{font-size:12px;color:var(--text2);white-space:nowrap}
+
+/* ── Tier chip in System Log ── */
+.tier-chip{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;
+  margin-right:5px;text-transform:uppercase;letter-spacing:.03em}
+.tier-chip.quick{background:#1a2535;color:#7ab}
+.tier-chip.standard{background:#1a2820;color:#7c4}
+.tier-chip.deep{background:#2a1830;color:#c8f}
+
+/* ── System Log (Background Knowledge) ── */
+.bg-filter-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.bg-filter{padding:4px 11px;border-radius:12px;font-size:11.5px;font-weight:600;
+  background:var(--bg2);border:1px solid var(--border2);color:var(--text2);
+  cursor:pointer;transition:all .12s;user-select:none}
+.bg-filter:hover{border-color:var(--accent);color:var(--text)}
+.bg-filter.active{background:var(--bg3);border-color:var(--accent);color:var(--accent)}
+.bg-filter[data-cat=error].active{border-color:var(--red);color:var(--red);background:#2a1212}
+.bg-filter[data-cat=connection].active{border-color:var(--blue);color:var(--blue);background:#1a2440}
+.bg-filter[data-cat=llm].active{border-color:var(--purple);color:var(--purple);background:#1e1630}
+.bg-filter[data-cat=state].active{border-color:var(--teal);color:var(--teal);background:#162a2a}
+.bg-event-list{display:flex;flex-direction:column;gap:3px}
+.bg-ev{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;
+  border-radius:var(--rsm);background:var(--bg2);border-left:3px solid transparent;
+  transition:background .1s}
+.bg-ev:hover{background:var(--bg3)}
+.bg-ev.ok   {border-left-color:var(--green)}
+.bg-ev.info {border-left-color:var(--blue)}
+.bg-ev.warn {border-left-color:var(--yellow)}
+.bg-ev.error{border-left-color:var(--red)}
+.bg-ev-icon{font-size:14px;flex-shrink:0;width:18px;text-align:center;padding-top:1px}
+.bg-ev-body{flex:1;min-width:0}
+.bg-ev-msg{font-size:12.5px;color:var(--text);line-height:1.4;word-break:break-word}
+.bg-ev.warn .bg-ev-msg{color:var(--yellow)}
+.bg-ev.error .bg-ev-msg{color:var(--red)}
+.bg-ev.ok .bg-ev-msg{color:var(--green)}
+.bg-ev-detail{font-size:11px;color:var(--text3);margin-top:2px;line-height:1.35}
+.bg-ev-ts{font-size:10.5px;color:var(--text3);flex-shrink:0;padding-top:2px;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.bg-cat-chip{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;
+  font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-right:5px}
+.bg-cat-chip.connection{background:#1a2440;color:var(--blue)}
+.bg-cat-chip.llm{background:#1e1630;color:var(--purple)}
+.bg-cat-chip.state{background:#162a2a;color:var(--teal)}
+.bg-cat-chip.error{background:#2a1212;color:var(--red)}
 </style>
 </head>
 <body>
@@ -330,6 +395,7 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
   <div class="ni" data-page="resources"><span class="ico">⚡</span>Resources</div>
   <div class="ni" data-page="settings"><span class="ico">⚙</span>Settings</div>
   <div class="ni" data-page="log"><span class="ico">📋</span>Activity Log</div>
+  <div class="ni" data-page="syslog"><span class="ico">🔍</span>System Log<span class="nbadge" id="syslog-badge">0</span></div>
   <div id="sb-bot">
     <div class="spill">
       <div class="sdot" id="sb-dot"></div>
@@ -454,6 +520,18 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
     <div class="trait-grid" id="trait-grid"></div>
   </div>
   <div class="card">
+    <div class="chdr">
+      <div class="ctitle">Social Battery</div>
+      <span class="dim">How eager to chat right now — drains during conversation, recharges in quiet</span>
+    </div>
+    <div class="social-bar-row">
+      <div class="social-bar-outer"><div class="social-bar-fill" id="social-bar-fill"></div></div>
+      <div class="social-bar-label"><span id="social-energy-pct">100</span>/100</div>
+      <div class="dim2" id="social-energy-mood" style="font-size:12px">eager to chat</div>
+    </div>
+    <div class="dim" style="margin-top:8px">Drain &amp; recharge rates in Settings. At 0% Bud only answers direct questions.</div>
+  </div>
+  <div class="card">
     <div class="chdr"><div class="ctitle">Backstory</div><span class="dim">Injected verbatim into LLM system prompt</span></div>
     <textarea id="char-backstory" rows="7" placeholder="Who is this companion? Where did they come from?"></textarea>
   </div>
@@ -472,83 +550,98 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
 <!-- ═══════════════════════════════════════════════ AI & MODELS -->
 <div class="page" id="page-ai">
   <div class="phdr">
-    <div><div class="ptitle">AI &amp; Models</div><div class="psub">Configure Ollama (local) and OpenAI (cloud) — hybrid routing uses both intelligently</div></div>
+    <div><div class="ptitle">AI &amp; Models</div><div class="psub">Ollama · OpenAI · Claude — modular routing, per-task provider control</div></div>
     <button class="btn sm pri" id="ai-save">Save AI Settings</button>
   </div>
   <div class="err-banner" id="ai-err"></div>
 
   <!-- Ollama -->
   <div class="card">
-    <div class="chdr"><div class="ctitle">Ollama (Local LLM)</div>
-      <div style="display:flex;gap:8px">
-        <span class="badge" id="ollama-badge">unknown</span>
-        <button class="btn xs" id="ollama-test">Test</button>
-      </div>
+    <div class="chdr"><div class="ctitle">Ollama (Local)</div>
+      <div style="display:flex;gap:8px"><span class="badge" id="ollama-badge">unknown</span><button class="btn xs" id="ollama-test">Test</button></div>
     </div>
     <div class="row">
       <div class="col"><label class="lbl">Ollama URL</label><input id="ai-ollama-url" value="http://localhost:11434" placeholder="http://localhost:11434"/></div>
-      <div class="col"><label class="lbl">Model</label><input id="ai-ollama-model" value="llama3.2" placeholder="llama3.2, mistral, qwen2.5:3b…"/></div>
+      <div class="col"><label class="lbl">Quick model <span class="dim2">Tier 1 — greetings, acks (1b–3b)</span></label><input id="ai-ollama-quick" placeholder="llama3.2:1b · qwen2.5:1.5b · gemma2:2b (blank = same as dialogue)"/></div>
+      <div class="col"><label class="lbl">Dialogue model <span class="dim2">Tier 2 — general chat (7b–8b)</span></label><input id="ai-ollama-model" value="llama3.2" placeholder="llama3.2 · llama3.1:8b · qwen2.5:7b"/></div>
     </div>
     <div class="test-result" id="ollama-result"></div>
-    <div class="dim" style="margin-top:6px">Run on another machine: <code>OLLAMA_HOST=0.0.0.0 ollama serve</code> then set URL to its LAN IP.</div>
+    <div class="dim" style="margin-top:6px">Tier 1 quick model handles simple replies. Tier 2 dialogue model handles conversation. Tier 3 (planning) always goes to cloud first.</div>
   </div>
 
   <!-- OpenAI -->
   <div class="card">
-    <div class="chdr"><div class="ctitle">OpenAI (Cloud)</div>
-      <div style="display:flex;gap:8px">
-        <span class="badge" id="openai-badge">not configured</span>
-        <button class="btn xs" id="openai-test">Test</button>
-      </div>
+    <div class="chdr"><div class="ctitle">OpenAI / ChatGPT</div>
+      <div style="display:flex;gap:8px"><span class="badge" id="openai-badge">not configured</span><button class="btn xs" id="openai-test">Test</button></div>
     </div>
     <div class="row">
-      <div class="col"><label class="lbl">API Key</label>
-        <input id="ai-openai-key" type="password" placeholder="sk-…  (leave blank to disable)"/></div>
-      <div class="col2"><label class="lbl">Model</label>
-        <input id="ai-openai-model" value="gpt-4o-mini" placeholder="gpt-4o-mini"/></div>
+      <div class="col"><label class="lbl">API Key</label><input id="ai-openai-key" type="password" placeholder="sk-… (leave blank to disable)"/></div>
+      <div class="col2"><label class="lbl">Model</label><input id="ai-openai-model" value="gpt-4o-mini" placeholder="gpt-4o-mini"/></div>
     </div>
     <div class="test-result" id="openai-result"></div>
-    <div class="dim" style="margin-top:6px">OpenAI is optional. If set, it's used for high-quality responses (direct player conversation). Leave blank to use Ollama only.</div>
   </div>
 
-  <!-- Hybrid routing -->
+  <!-- Claude -->
   <div class="card">
-    <div class="chdr"><div class="ctitle">Hybrid Routing Strategy</div></div>
-    <div class="row" style="margin-bottom:8px">
-      <div class="col"><label class="lbl">Dialogue provider</label>
-        <select id="ai-dialogue-prov">
-          <option value="hybrid">Hybrid (smart routing)</option>
-          <option value="ollama">Ollama only</option>
-          <option value="openai">OpenAI only</option>
-        </select>
-      </div>
-      <div class="col"><label class="lbl">Intent parser</label>
-        <select id="ai-intent-prov">
-          <option value="ollama">Ollama (recommended — fast &amp; cheap)</option>
-          <option value="openai">OpenAI</option>
-        </select>
-      </div>
+    <div class="chdr"><div class="ctitle">Claude / Anthropic</div>
+      <div style="display:flex;gap:8px"><span class="badge" id="claude-badge">not configured</span><button class="btn xs" id="claude-test">Test</button></div>
     </div>
+    <div class="row">
+      <div class="col"><label class="lbl">API Key</label><input id="ai-claude-key" type="password" placeholder="sk-ant-… (leave blank to disable)"/></div>
+      <div class="col2"><label class="lbl">Model</label><input id="ai-claude-model" value="claude-haiku-4-5-20251001" placeholder="claude-haiku-4-5-20251001 · claude-sonnet-4-6"/></div>
+    </div>
+    <div class="test-result" id="claude-result"></div>
+    <div class="dim" style="margin-top:6px">Haiku 4.5 = fast &amp; cheap &nbsp;·&nbsp; Sonnet 4.6 = higher quality &nbsp;·&nbsp; Used for planning, reflection, and complex dialogue by default.</div>
+  </div>
+
+  <!-- Routing strategy -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Routing Strategy</div></div>
     <div class="row" style="margin-bottom:8px">
-      <div class="col"><label class="lbl">Hybrid strategy</label>
+      <div class="col"><label class="lbl">Global strategy</label>
         <select id="ai-strategy">
-          <option value="quality_routing">Quality routing (smart — default)</option>
-          <option value="ollama_primary">Ollama primary, OpenAI fallback</option>
+          <option value="quality_routing">Quality routing — smart default (recommended)</option>
+          <option value="local_first">Local first — Ollama only, never cloud</option>
+          <option value="cheapest">Cheapest — Ollama for all, cloud only for planning</option>
+          <option value="best_quality">Best quality — best cloud provider first</option>
+          <option value="ollama_primary">Ollama primary, cloud fallback</option>
           <option value="openai_primary">OpenAI primary, Ollama fallback</option>
-          <option value="round_robin">Round robin (alternate calls)</option>
         </select>
       </div>
-      <div class="col"><label class="lbl">OpenAI hourly call limit (cost guard)</label>
-        <input id="ai-hourly" type="number" value="30" min="1" max="500" placeholder="30"/></div>
+      <div class="col2"><label class="lbl">OpenAI hourly limit</label>
+        <input id="ai-hourly" type="number" value="30" min="1" max="500"/></div>
     </div>
     <div class="row" style="margin-bottom:0">
-      <div class="col"><label class="lbl">Ollama timeout (ms)</label>
-        <input id="ai-ollama-timeout" type="number" value="20000" min="3000" max="120000"/></div>
-      <div class="col"><label class="lbl">OpenAI timeout (ms)</label>
-        <input id="ai-openai-timeout" type="number" value="15000" min="3000" max="60000"/></div>
+      <div class="col"><label class="lbl">Ollama timeout (ms)</label><input id="ai-ollama-timeout" type="number" value="20000" min="3000" max="120000"/></div>
+      <div class="col"><label class="lbl">OpenAI timeout (ms)</label><input id="ai-openai-timeout" type="number" value="15000" min="3000" max="60000"/></div>
+      <div class="col"><label class="lbl">Claude timeout (ms)</label><input id="ai-claude-timeout" type="number" value="30000" min="3000" max="120000"/></div>
     </div>
-    <div class="dim" style="margin-top:10px;line-height:1.7">
-      <strong style="color:var(--text)">Quality routing</strong> sends intent/ambient/observation calls to Ollama (fast, cheap), and routes direct player conversation + important moments to OpenAI (higher quality). Always falls back to Ollama if OpenAI is unavailable or over limit.
+  </div>
+
+  <!-- Per-task routing -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Per-Task Provider Override</div><span class="dim2">Overrides strategy for specific task types</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px">
+      <div class="task-row"><label class="lbl" style="margin:0">Intent parsing</label>
+        <select class="task-sel" data-task="intent"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Memory detection</label>
+        <select class="task-sel" data-task="memory"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Ambient comments</label>
+        <select class="task-sel" data-task="ambient"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Environment observation</label>
+        <select class="task-sel" data-task="observe"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Worker instructions</label>
+        <select class="task-sel" data-task="worker"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Direct dialogue</label>
+        <select class="task-sel" data-task="dialogue"><option value="auto" selected>Auto (strategy)</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Summarization</label>
+        <select class="task-sel" data-task="summarization"><option value="auto" selected>Auto (strategy)</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Complex planning</label>
+        <select class="task-sel" data-task="planning"><option value="auto" selected>Auto (strategy)</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Long-term reflection</label>
+        <select class="task-sel" data-task="reflection"><option value="auto" selected>Auto (strategy)</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option></select></div>
+      <div class="task-row"><label class="lbl" style="margin:0">Internal monologue</label>
+        <select class="task-sel" data-task="monologue"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="claude">Claude</option><option value="auto">Auto</option></select></div>
     </div>
   </div>
 
@@ -614,6 +707,28 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
         </tr></thead>
         <tbody id="mem-tbody"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ── Conversation History ─────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="chdr">
+      <div class="ctitle">Conversation History</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="dim" id="conv-stats" style="font-size:12px"></span>
+        <button class="btn sm ghost" id="conv-refresh">↻</button>
+        <button class="btn sm dan"   id="conv-clear">Forget All</button>
+      </div>
+    </div>
+    <div class="dim" style="font-size:12px;margin-bottom:10px">
+      What Bud remembers from previous chats. Automatically saved on disconnect, discarded after 3 days.
+    </div>
+    <div id="conv-summary-row" style="display:none;margin-bottom:8px">
+      <div class="dim" style="font-size:11px;color:var(--acc)">📝 Earlier summary:</div>
+      <div id="conv-summary-text" style="font-size:12px;padding:6px 8px;background:var(--bg2);border-radius:6px;margin-top:4px"></div>
+    </div>
+    <div id="conv-list" style="display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto">
+      <div class="dim">No conversation history saved yet.</div>
     </div>
   </div>
 </div>
@@ -771,12 +886,93 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
   </div>
   <div class="card">
     <div class="chdr"><div class="ctitle">Behaviour Tuning</div></div>
-    <div class="row" style="margin-bottom:0">
+    <div class="row">
       <div class="col"><label class="lbl">Follow distance (blocks)</label><input id="s-follow" type="number" value="3" min="1" max="20"/></div>
       <div class="col"><label class="lbl">Loiter radius (blocks)</label><input id="s-loiter" type="number" value="8" min="2" max="64"/></div>
       <div class="col"><label class="lbl">Response delay (ms)</label><input id="s-delay" type="number" value="1500" min="0" max="10000"/></div>
     </div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">World scan interval (s) <span class="dim2">how often Bud observes surroundings</span></label><input id="s-observe" type="number" value="10" min="5" max="120"/></div>
+      <div class="col"><label class="lbl">Talkative chat interval (s) <span class="dim2">unprompted speech frequency</span></label><input id="s-talkative" type="number" value="45" min="10" max="300"/></div>
+    </div>
   </div>
+  <!-- Internal monologue -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Internal Monologue</div><span class="dim2">Background self-reflection — Bud checks if he's on track</span></div>
+    <div class="row">
+      <div class="col2" style="display:flex;align-items:center;gap:10px;padding-top:6px">
+        <label class="toggle-wrap"><input type="checkbox" id="s-mono-enabled"><span class="toggle"></span></label>
+        <span class="lbl" style="margin:0">Enable internal monologue</span>
+      </div>
+      <div class="col"><label class="lbl">Check interval (s) <span class="dim2">base tick rate</span></label>
+        <input id="s-mono-interval" type="number" value="60" min="15" max="600"/></div>
+      </div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">Neuroticism (1–10) <span class="dim2">chance to fire per tick = n/10</span></label>
+        <input id="s-mono-neuro" type="range" min="1" max="10" value="5" style="width:100%"/>
+        <div class="dim2" id="s-mono-neuro-val" style="text-align:right">5 / 10</div></div>
+      <div class="col"><label class="lbl">Provider</label>
+        <select id="s-mono-provider">
+          <option value="ollama">Ollama (default — fast, local)</option>
+          <option value="openai">OpenAI</option>
+          <option value="claude">Claude</option>
+          <option value="auto">Auto (follows routing strategy)</option>
+        </select></div>
+    </div>
+    <div class="dim" style="margin-top:8px">When enabled, Bud quietly reflects on his current state and task. If something is wrong he emits an ADJUST directive logged in Activity Log. Neuroticism 10 = fires almost every tick; 1 = rarely.</div>
+  </div>
+
+  <!-- Conversation memory -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Conversation Memory</div><span class="dim2">How many exchanges Bud remembers mid-conversation</span></div>
+    <div class="row" style="margin-bottom:0">
+      <div class="col"><label class="lbl">Buffer size (turns) <span class="dim2">older turns are auto-summarised</span></label>
+        <input id="s-conv-turns" type="range" min="4" max="40" value="20" style="width:100%"/>
+        <div class="dim2" id="s-conv-turns-val" style="text-align:right">20 turns</div>
+      </div>
+    </div>
+    <div class="dim" style="margin-top:8px">Each "turn" is one player message + one Bud reply. Quick tier gets 6 turns, Standard gets 12, Deep gets all. When the buffer is full, older turns are summarised into a single line so context is never completely lost.</div>
+  </div>
+
+  <!-- Planning execution -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Planning &amp; Auto-Execution</div><span class="dim2">What happens when Bud generates a multi-step plan</span></div>
+    <div class="row">
+      <div class="col2" style="display:flex;align-items:center;gap:10px;padding-top:6px">
+        <label class="toggle-wrap"><input type="checkbox" id="s-plan-auto"><span class="toggle"></span></label>
+        <span class="lbl" style="margin:0">Auto-execute plan steps</span>
+      </div>
+      <div class="col2" style="display:flex;align-items:center;gap:10px;padding-top:6px">
+        <label class="toggle-wrap"><input type="checkbox" id="s-plan-confirm" checked><span class="toggle"></span></label>
+        <span class="lbl" style="margin:0">Confirm each step in chat</span>
+      </div>
+      <div class="col2"><label class="lbl">Max steps (1–10)</label>
+        <input id="s-plan-maxsteps" type="number" value="5" min="1" max="10"/>
+      </div>
+    </div>
+    <div class="dim" style="margin-top:8px">When Bud produces a numbered plan (e.g. 1. Go to farm 2. Harvest), auto-execute will run each step in sequence. Confirm mode asks "ok?" in chat before each step. You can also just let Bud say the plan without executing.</div>
+  </div>
+
+  <!-- Social energy settings -->
+  <div class="card">
+    <div class="chdr"><div class="ctitle">Social Energy</div><span class="dim2">Controls how Bud's social battery charges and drains</span></div>
+    <div class="row">
+      <div class="col2" style="display:flex;align-items:center;gap:10px;padding-top:6px">
+        <label class="toggle-wrap"><input type="checkbox" id="s-social-enabled" checked><span class="toggle"></span></label>
+        <span class="lbl" style="margin:0">Enable social battery</span>
+      </div>
+      <div class="col"><label class="lbl">Drain per exchange (1–20) <span class="dim2">points lost per conversation</span></label>
+        <input id="s-social-drain" type="range" min="1" max="20" value="8" style="width:100%"/>
+        <div class="dim2" id="s-social-drain-val" style="text-align:right">8 pts / exchange</div>
+      </div>
+      <div class="col"><label class="lbl">Charge per minute (1–20) <span class="dim2">points gained while quiet</span></label>
+        <input id="s-social-charge" type="range" min="1" max="20" value="5" style="width:100%"/>
+        <div class="dim2" id="s-social-charge-val" style="text-align:right">5 pts / min</div>
+      </div>
+    </div>
+    <div class="dim" style="margin-top:8px">At 100% Bud initiates chat freely. Below 30% he drops a model tier (shorter answers). Below 10% only quick-tier responses. Recharges after 30 s of quiet.</div>
+  </div>
+
   <div class="card">
     <div class="chdr"><div class="ctitle">Data Files</div></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -790,7 +986,7 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
     <div class="dim" style="line-height:1.8">
       Minecraft AI Companion v0.3 &nbsp;·&nbsp; Fabric 1.21.x compatible<br>
       Headless CLI: <code>node src/botManager-cli.js</code><br>
-      GitHub: add your repo URL here
+      GitHub: <a href="https://github.com/FluffyBacon678/MineractAiApp" target="_blank" style="color:var(--acc)">FluffyBacon678/MineractAiApp</a>
     </div>
   </div>
 </div>
@@ -809,6 +1005,35 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════ SYSTEM LOG -->
+<div class="page" id="page-syslog">
+  <div class="phdr">
+    <div>
+      <div class="ptitle">System Log</div>
+      <div class="psub">Live internal events — connection status, AI providers, mode changes, errors</div>
+    </div>
+    <div class="phdr-actions">
+      <button class="btn sm ghost" id="syslog-refresh">↻ Refresh</button>
+      <button class="btn sm dan"   id="syslog-clear">Clear</button>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="bg-filter-bar">
+    <span class="bg-filter active" data-cat="all">All</span>
+    <span class="bg-filter" data-cat="connection">🌐 Connection</span>
+    <span class="bg-filter" data-cat="llm">🤖 AI Providers</span>
+    <span class="bg-filter" data-cat="state">🎮 State / Tasks</span>
+    <span class="bg-filter" data-cat="error">⚠ Errors only</span>
+  </div>
+
+  <div class="card" style="padding:0 0 4px">
+    <div id="syslog-list" class="bg-event-list" style="padding:8px 12px 4px">
+      <div class="empty">No events yet. Connect to the Minecraft server to start.</div>
+    </div>
+  </div>
+</div>
+
 </div></div></div>
 
 <script>
@@ -818,6 +1043,7 @@ const $ = id => document.getElementById(id);
 const chatMsgs = [];
 let charMeta = null, traitValues = {}, stalePending = {}, logEntries = [];
 let isConnected = false, unread = 0, curPage = 'dashboard';
+let bgEvents = [], bgFilter = 'all', bgErrorCount = 0;
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -838,7 +1064,8 @@ function getS(){ try{ return JSON.parse(localStorage.getItem(SK))||{}; }catch{ r
 function saveS(){
   const s={ host:$('s-host').value,port:+$('s-port').value,version:$('s-ver').value,
     username:$('s-user').value,followDistance:+$('s-follow').value,
-    loiterRadius:+$('s-loiter').value,responseDelay:+$('s-delay').value };
+    loiterRadius:+$('s-loiter').value,responseDelay:+$('s-delay').value,
+    observeIntervalMs:+$('s-observe').value*1000,talkativeIntervalMs:+$('s-talkative').value*1000 };
   if(!s.host){ showErr('s-err','Host is required'); return false; }
   if(!s.port||s.port<1||s.port>65535){ showErr('s-err','Invalid port'); return false; }
   localStorage.setItem(SK,JSON.stringify(s)); return s;
@@ -848,32 +1075,149 @@ function applyS(s){
   if(s.port)           $('s-port').value  =s.port;
   if(s.version)        $('s-ver').value   =s.version;
   if(s.username!=null) $('s-user').value  =s.username;
-  if(s.followDistance) $('s-follow').value=s.followDistance;
-  if(s.loiterRadius)   $('s-loiter').value=s.loiterRadius;
-  if(s.responseDelay)  $('s-delay').value =s.responseDelay;
+  if(s.followDistance)      $('s-follow').value   =s.followDistance;
+  if(s.loiterRadius)        $('s-loiter').value   =s.loiterRadius;
+  if(s.responseDelay)       $('s-delay').value    =s.responseDelay;
+  if(s.observeIntervalMs)   $('s-observe').value  =s.observeIntervalMs/1000;
+  if(s.talkativeIntervalMs) $('s-talkative').value=s.talkativeIntervalMs/1000;
 }
-$('s-save').addEventListener('click',()=>{ const ok=saveS(); if(ok) addSysMsg('Settings saved.'); });
+// Neuroticism slider live display
+$('s-mono-neuro').addEventListener('input',()=>{
+  $('s-mono-neuro-val').textContent=$('s-mono-neuro').value+' / 10';
+});
+
+// ── Social battery UI ─────────────────────────────────────────────────────────
+function updateSocialBar(level){
+  const fill=$('social-bar-fill'), pct=$('social-energy-pct'), mood=$('social-energy-mood');
+  if(!fill) return;
+  const lvl=Math.max(0,Math.min(100,Math.round(level)));
+  fill.style.width=lvl+'%';
+  fill.style.background=lvl>=70?'#4caf50':lvl>=30?'#ff9800':'#f44336';
+  if(pct) pct.textContent=lvl;
+  if(mood) mood.textContent=lvl>=80?'eager to chat':lvl>=50?'sociable':lvl>=20?'a bit drained':'worn out — keeping quiet';
+}
+
+async function loadSocialSettings(){
+  try{
+    const {level,config}=await api.socialGet();
+    updateSocialBar(level);
+    if(config){
+      $('s-social-enabled').checked=config.enabled!==false;
+      $('s-social-drain').value=config.drainPerExchange||8;
+      $('s-social-drain-val').textContent=(config.drainPerExchange||8)+' pts / exchange';
+      $('s-social-charge').value=config.chargePerMinute||5;
+      $('s-social-charge-val').textContent=(config.chargePerMinute||5)+' pts / min';
+    }
+  }catch{}
+}
+
+async function loadConversationSettings(){
+  try{
+    const cfg=await api.llmGetConfig();
+    const c=cfg?.conversation||{};
+    const p=cfg?.planning||{};
+    const turns=c.maxTurns||20;
+    $('s-conv-turns').value=turns;
+    $('s-conv-turns-val').textContent=turns+' turns';
+    $('s-plan-auto').checked=!!p.autoExecute;
+    $('s-plan-confirm').checked=p.requireConfirmation!==false;
+    $('s-plan-maxsteps').value=p.maxSteps||5;
+  }catch{}
+}
+
+// Slider live-update labels
+$('s-conv-turns').addEventListener('input',()=>{
+  $('s-conv-turns-val').textContent=$('s-conv-turns').value+' turns';
+});
+$('s-social-drain').addEventListener('input',()=>{
+  $('s-social-drain-val').textContent=$('s-social-drain').value+' pts / exchange';
+});
+$('s-social-charge').addEventListener('input',()=>{
+  $('s-social-charge-val').textContent=$('s-social-charge').value+' pts / min';
+});
+
+// Live social battery from bot events
+api.on('bot:social',({level})=>updateSocialBar(level));
+
+// Load monologue settings from backend config
+async function loadMonologueSettings(){
+  try{
+    const cfg=await api.llmGetConfig();
+    if(!cfg?.monologue) return;
+    const m=cfg.monologue;
+    $('s-mono-enabled').checked  = !!m.enabled;
+    $('s-mono-interval').value   = Math.round((m.intervalMs||60000)/1000);
+    $('s-mono-neuro').value      = m.neuroticism||5;
+    $('s-mono-neuro-val').textContent=(m.neuroticism||5)+' / 10';
+    if(m.provider) $('s-mono-provider').value=m.provider;
+  }catch{}
+}
+
+$('s-save').addEventListener('click', async ()=>{
+  const ok=saveS();
+  if(!ok) return;
+  // Persist monologue + conversation + planning config
+  await api.llmSetConfig({
+    monologue:{
+      enabled:    $('s-mono-enabled').checked,
+      intervalMs: +$('s-mono-interval').value * 1000,
+      neuroticism:+$('s-mono-neuro').value,
+      provider:   $('s-mono-provider').value,
+    },
+    conversation:{
+      maxTurns: +$('s-conv-turns').value,
+    },
+    planning:{
+      autoExecute:         $('s-plan-auto').checked,
+      requireConfirmation: $('s-plan-confirm').checked,
+      maxSteps:            +$('s-plan-maxsteps').value,
+    },
+  }).catch(()=>{});
+  // Social energy persisted separately (runtime state, not LLM config)
+  await api.socialSet({
+    enabled:          $('s-social-enabled').checked,
+    drainPerExchange: +$('s-social-drain').value,
+    chargePerMinute:  +$('s-social-charge').value,
+  }).catch(()=>{});
+  addSysMsg('Settings saved.');
+});
 $('s-opendata').addEventListener('click',()=>api.openDataFolder());
 applyS(getS());
+loadMonologueSettings();
+loadConversationSettings();
+loadSocialSettings();
 
 // ── Build connect config ──────────────────────────────────────────────────────
 function buildCfg(){
   const s=getS();
+  // Collect per-task routing map from the AI page selects (if populated)
+  const taskMap={};
+  document.querySelectorAll('.task-sel').forEach(sel=>{ taskMap[sel.dataset.task]=sel.value; });
+
   return {
     bot:{ host:s.host||'localhost',port:s.port||25565,username:s.username||'',version:s.version||'1.21.1',auth:'offline'},
-    companion:{ observeIntervalMs:10000,talkativeIntervalMs:45000,
+    companion:{ observeIntervalMs:s.observeIntervalMs||10000,talkativeIntervalMs:s.talkativeIntervalMs||45000,
       followDistance:s.followDistance||3,loiterRadius:s.loiterRadius||8,responseDelayMs:s.responseDelay||1500},
     ollama:{ baseUrl:$('ai-ollama-url')?.value||'http://localhost:11434',
+             quickModel:$('ai-ollama-quick')?.value||'',
              model:$('ai-ollama-model')?.value||'llama3.2',
              dialogueModel:$('ai-ollama-model')?.value||'llama3.2',
              timeoutMs:+($('ai-ollama-timeout')?.value||20000)},
-    openai:{ apiKey:$('ai-openai-key')?.value||'',model:$('ai-openai-model')?.value||'gpt-4o-mini',
-             timeoutMs:+($('ai-openai-timeout')?.value||15000),
-             enabled:!!($('ai-openai-key')?.value?.startsWith('sk-'))},
-    hybrid:{ dialogueProvider:$('ai-dialogue-prov')?.value||'hybrid',
-             intentProvider:$('ai-intent-prov')?.value||'ollama',
-             strategy:$('ai-strategy')?.value||'quality_routing',
+    openai:(()=>{ const v=$('ai-openai-key')?.value||''; const realKey=v.startsWith('(already set')||!v?null:v;
+             return { ...(realKey?{apiKey:realKey,enabled:true}:{}),
+               model:$('ai-openai-model')?.value||'gpt-4o-mini',
+               timeoutMs:+($('ai-openai-timeout')?.value||15000) }; })(),
+    claude:(()=>{ const v=$('ai-claude-key')?.value||''; const realKey=v.startsWith('(already set')||!v?null:v;
+             return { ...(realKey?{apiKey:realKey,enabled:true}:{}),
+               model:$('ai-claude-model')?.value||'claude-haiku-4-5-20251001',
+               timeoutMs:+($('ai-claude-timeout')?.value||30000) }; })(),
+    hybrid:{ strategy:$('ai-strategy')?.value||'quality_routing',
              openAiHourlyLimit:+($('ai-hourly')?.value||30)},
+    routing:{ taskMap:Object.keys(taskMap).length?taskMap:{} },
+    monologue:{ enabled:$('s-mono-enabled')?.checked||false,
+                intervalMs:(+($('s-mono-interval')?.value||60))*1000,
+                neuroticism:+($('s-mono-neuro')?.value||5),
+                provider:$('s-mono-provider')?.value||'ollama'},
   };
 }
 
@@ -887,13 +1231,20 @@ function navTo(page){
   if(pg) pg.classList.add('active');
   curPage=page;
   if(page==='chat'){ unread=0; $('chat-badge').style.display='none'; $('chat-badge').textContent='0'; }
-  if(page==='memory')      refreshMemory();
+  if(page==='memory')      { refreshMemory(); refreshConvHistory(); }
   if(page==='log')         refreshLog();
   if(page==='permissions') refreshPermissions();
   if(page==='staleness')   refreshStaleness();
   if(page==='character')   loadCharacter();
   if(page==='ai')          loadAISettings();
   if(page==='resources')   loadResourceLimits();
+  if(page==='settings')    { loadMonologueSettings(); loadConversationSettings(); loadSocialSettings(); }
+  if(page==='syslog'){
+    bgErrorCount=0;
+    const badge=$('syslog-badge');
+    badge.style.display='none'; badge.textContent='0';
+    refreshSysLog();
+  }
 }
 document.querySelectorAll('.ni').forEach(el=>el.addEventListener('click',()=>navTo(el.dataset.page)));
 $('tb-char').addEventListener('click',()=>navTo('character'));
@@ -913,7 +1264,7 @@ $('btn-dis').addEventListener('click',async()=>{
 // ── Status ────────────────────────────────────────────────────────────────────
 function setStatus(s){
   isConnected=!/disconnected|connecting|error/.test(s);
-  const col=s==='disconnected'||s==='error'?'red':s==='connecting'?'yellow':'green';
+  const col=s==='disconnected'||s==='error'?'red':/connecting/.test(s)?'yellow':'green';
   $('sb-stxt').textContent=s; $('dash-status').textContent=s.charAt(0).toUpperCase()+s.slice(1); $('dash-state').textContent=s;
   ['sb-dot','tb-dot'].forEach(id=>{ const e=$(id); e.className=id==='sb-dot'?'sdot':''; e.classList.add(col); });
   $('btn-con').style.display=isConnected?'none':''; $('btn-dis').style.display=isConnected?'':'none'; $('btn-con').disabled=false;
@@ -925,6 +1276,7 @@ api.on('bot:status', s=>{ setStatus(s); if(s!=='disconnected') refreshMemory().c
 api.on('bot:chat',   c=>appendChat(c.from,c.message,c.from==='bot'?'bot':c.from==='system'?'system':'player'));
 api.on('bot:error',  e=>addSysMsg(String(e),'err'));
 api.on('bot:log',    l=>{ const m=typeof l==='string'?l:(l.msg||JSON.stringify(l)); addLogEntry({at:l.at||Date.now(),msg:m}); });
+api.on('bot:bgevent',e=>pushBgEvent(e));
 api.on('bot:resources', r=>updateMeters(r));
 api.on('bot:profile', ({profile})=>{
   document.querySelectorAll('.pchip').forEach(c=>c.classList.toggle('active',c.dataset.profile===profile));
@@ -952,7 +1304,7 @@ function updateMeters(r){
 }
 
 // ── LLM bar ───────────────────────────────────────────────────────────────────
-let llmStats={ollama:0,openai:0,fallbacks:0};
+let llmStats={ollama:0,openai:0,claude:0,fallbacks:0};
 function updateLLMBar(e){
   if(e.provider) llmStats[e.provider]=(llmStats[e.provider]||0)+1;
   if(e.isFallback) llmStats.fallbacks=(llmStats.fallbacks||0)+1;
@@ -960,14 +1312,14 @@ function updateLLMBar(e){
 }
 function renderLLMBar(){
   const bar=$('llm-bar');
-  const total=llmStats.ollama+llmStats.openai;
+  const total=llmStats.ollama+llmStats.openai+llmStats.claude;
   if(!total){ bar.innerHTML='<span class="dim">No LLM activity yet.</span>'; return; }
   const fb=llmStats.fallbacks>0?`<div class="llm-stat"><span style="color:var(--yellow)">⚠ ${llmStats.fallbacks} fallback(s)</span></div>`:'';
+  const cl=llmStats.claude>0?`<div class="llm-stat"><div class="llm-dot" style="background:#cc7722"></div>Claude: ${llmStats.claude}</div>`:'';
   bar.innerHTML=`
     <div class="llm-stat"><div class="llm-dot ollama"></div>Ollama: ${llmStats.ollama}</div>
     <div class="llm-stat"><div class="llm-dot openai"></div>OpenAI: ${llmStats.openai}</div>
-    <div class="llm-stat" style="color:var(--text3)">Total: ${total}</div>
-    ${fb}`;
+    ${cl}<div class="llm-stat" style="color:var(--text3)">Total: ${total}</div>${fb}`;
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
@@ -1041,6 +1393,90 @@ $('log-clear').addEventListener('click',async()=>{
   await api.logClear().catch(()=>{}); logEntries.length=0; renderLog();
 });
 
+// ── System Log ────────────────────────────────────────────────────────────────
+const BG_ICONS = { connection:'🌐', llm:'🤖', state:'🎮', error:'⚠' };
+
+function _bgLevelForCat(cat, level) {
+  // 'error' filter matches any entry with level===error regardless of cat
+  return level;
+}
+
+function bgEventMatches(ev) {
+  if (bgFilter === 'all')    return true;
+  if (bgFilter === 'error')  return ev.level === 'error';
+  return ev.cat === bgFilter;
+}
+
+function renderSysLog() {
+  const el = $('syslog-list');
+  const filtered = bgEvents.filter(bgEventMatches);
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty">No events match the current filter.</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(ev => {
+    const icon   = BG_ICONS[ev.cat] || '•';
+    const detail = ev.detail ? `<div class="bg-ev-detail">${esc(ev.detail)}</div>` : '';
+    let tierChip = '';
+    if (ev.cat === 'llm') {
+      const tm = (ev.msg||'').match(/\[(quick|standard|deep)\]/i);
+      if (tm) tierChip = `<span class="tier-chip ${tm[1].toLowerCase()}">${tm[1]}</span>`;
+    }
+    return `<div class="bg-ev ${esc(ev.level)}">
+      <span class="bg-ev-icon">${icon}</span>
+      <div class="bg-ev-body">
+        <div class="bg-ev-msg">
+          <span class="bg-cat-chip ${esc(ev.cat)}">${esc(ev.cat)}</span>${tierChip}${esc(ev.msg)}
+        </div>${detail}
+      </div>
+      <span class="bg-ev-ts">${timeStr(ev.at)}</span>
+    </div>`;
+  }).join('');
+}
+
+function pushBgEvent(ev) {
+  bgEvents.unshift(ev);
+  if (bgEvents.length > 250) bgEvents.length = 250;
+  // Bump badge for error/warn events when not on the syslog page
+  if ((ev.level === 'error') && curPage !== 'syslog') {
+    bgErrorCount++;
+    const badge = $('syslog-badge');
+    badge.textContent = bgErrorCount > 99 ? '99+' : bgErrorCount;
+    badge.style.display = '';
+  }
+  if (curPage === 'syslog') renderSysLog();
+}
+
+async function refreshSysLog() {
+  try {
+    const es = await api.bgEventsGetAll();
+    bgEvents.length = 0;
+    es.forEach(e => bgEvents.push(e));
+    renderSysLog();
+  } catch(e) { /* silent */ }
+}
+
+// Filter bar clicks
+document.querySelectorAll('.bg-filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.bg-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    bgFilter = btn.dataset.cat;
+    renderSysLog();
+  });
+});
+
+$('syslog-refresh').addEventListener('click', refreshSysLog);
+$('syslog-clear').addEventListener('click', async () => {
+  if (!confirm('Clear all system log events?')) return;
+  await api.bgEventsClear().catch(() => {});
+  bgEvents.length = 0;
+  bgErrorCount = 0;
+  const badge = $('syslog-badge');
+  badge.style.display = 'none'; badge.textContent = '0';
+  renderSysLog();
+});
+
 // ── Memory ────────────────────────────────────────────────────────────────────
 async function refreshMemory(){
   try{
@@ -1072,6 +1508,48 @@ async function refreshMemory(){
 }
 window.memDel=async id=>{ await api.memoryDelete(id).catch(()=>{}); refreshMemory(); };
 window.memRefresh=async id=>{ const r=await api.memoryRefresh(id).catch(()=>({ok:false,reason:'?'})); addSysMsg(r.reason||'Refreshed'); refreshMemory(); };
+
+// ── Conversation history ──────────────────────────────────────────────────────
+async function refreshConvHistory(){
+  try{
+    const data=await api.convGet().catch(()=>null);
+    if(!data){ $('conv-list').innerHTML='<div class="dim">Could not load.</div>'; return; }
+    const turns=data.turns||[], summary=data.summary||null;
+    const stats=data.stats||{};
+    $('conv-stats').textContent=turns.length
+      ? `${turns.length} turn${turns.length>1?'s':''} · oldest ${stats.oldestMinsAgo??'?'}m ago`
+      : 'no history';
+    if(summary){
+      $('conv-summary-row').style.display='';
+      $('conv-summary-text').textContent=summary;
+    } else {
+      $('conv-summary-row').style.display='none';
+    }
+    if(!turns.length){
+      $('conv-list').innerHTML='<div class="dim">No conversation history saved yet.</div>';
+      return;
+    }
+    $('conv-list').innerHTML=turns.slice(-40).map(t=>{
+      const isUser=t.role==='user';
+      const age=t.ts?Math.round((Date.now()-t.ts)/60000):null;
+      const ageStr=age!=null?(age<60?`${age}m ago`:`${Math.round(age/60)}h ago`):'';
+      return `<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:${isUser?'var(--bg2)':'var(--bg3)'}">
+        <span style="font-size:10px;font-weight:600;color:${isUser?'var(--acc)':'var(--green)'};min-width:50px;padding-top:2px">${isUser?'Player':'Bud'}</span>
+        <span style="font-size:12px;flex:1;line-height:1.5">${esc(t.content)}</span>
+        <span style="font-size:10px;color:var(--muted);white-space:nowrap">${esc(ageStr)}</span>
+      </div>`;
+    }).join('');
+    // Scroll to bottom to show most recent
+    const el=$('conv-list'); el.scrollTop=el.scrollHeight;
+  }catch(e){ $('conv-list').innerHTML=`<div class="dim">Error: ${esc(e.message)}</div>`; }
+}
+$('conv-refresh').addEventListener('click',refreshConvHistory);
+$('conv-clear').addEventListener('click',async()=>{
+  if(!confirm('Clear all of Bud\'s conversation history? This cannot be undone.')) return;
+  await api.convClear().catch(()=>{});
+  refreshConvHistory();
+  addSysMsg('Conversation history cleared.');
+});
 $('mem-refresh-btn').addEventListener('click',refreshMemory);
 $('mem-add').addEventListener('click',async()=>{
   const name=$('mem-name').value.trim(),x=parseFloat($('mem-x').value),z=parseFloat($('mem-z').value),y=parseFloat($('mem-y').value);
@@ -1232,48 +1710,91 @@ async function loadAISettings(){
   try{
     const cfg=await api.llmGetConfig();
     if(!cfg) return;
-    if(cfg.ollama){ $('ai-ollama-url').value=cfg.ollama.baseUrl||''; $('ai-ollama-model').value=cfg.ollama.model||''; $('ai-ollama-timeout').value=cfg.ollama.timeoutMs||20000; }
-    if(cfg.openai){ $('ai-openai-key').value=cfg.openai.apiKey==='***set***'?'(already set — type new key to change)':cfg.openai.apiKey||''; $('ai-openai-model').value=cfg.openai.model||''; $('ai-openai-timeout').value=cfg.openai.timeoutMs||15000; }
-    if(cfg.hybrid){ $('ai-dialogue-prov').value=cfg.hybrid.dialogueProvider||'hybrid'; $('ai-intent-prov').value=cfg.hybrid.intentProvider||'ollama'; $('ai-strategy').value=cfg.hybrid.strategy||'quality_routing'; $('ai-hourly').value=cfg.hybrid.openAiHourlyLimit||30; }
+    if(cfg.ollama){
+      $('ai-ollama-url').value     = cfg.ollama.baseUrl||'http://localhost:11434';
+      $('ai-ollama-quick').value   = cfg.ollama.quickModel||'';
+      $('ai-ollama-model').value   = cfg.ollama.dialogueModel||cfg.ollama.model||'llama3.2';
+      $('ai-ollama-timeout').value = cfg.ollama.timeoutMs||20000;
+    }
+    if(cfg.openai){
+      $('ai-openai-key').value     = cfg.openai.apiKey==='***set***'?'(already set — type new key to change)':cfg.openai.apiKey||'';
+      $('ai-openai-model').value   = cfg.openai.model||'gpt-4o-mini';
+      $('ai-openai-timeout').value = cfg.openai.timeoutMs||15000;
+    }
+    if(cfg.claude){
+      $('ai-claude-key').value     = cfg.claude.apiKey==='***set***'?'(already set — type new key to change)':cfg.claude.apiKey||'';
+      $('ai-claude-model').value   = cfg.claude.model||'claude-haiku-4-5-20251001';
+      $('ai-claude-timeout').value = cfg.claude.timeoutMs||30000;
+    }
+    if(cfg.hybrid){
+      $('ai-strategy').value = cfg.hybrid.strategy||'quality_routing';
+      $('ai-hourly').value   = cfg.hybrid.openAiHourlyLimit||30;
+    }
+    if(cfg.routing?.taskMap){
+      document.querySelectorAll('.task-sel').forEach(sel=>{
+        const v=cfg.routing.taskMap[sel.dataset.task];
+        if(v) sel.value=v;
+      });
+    }
     updateAIBadges(cfg);
     refreshAIStats();
   }catch(e){ showErr('ai-err','Config load failed: '+e.message); }
 }
 function updateAIBadges(cfg){
-  const ollamaBadge=$('ollama-badge'); ollamaBadge.textContent='configured'; ollamaBadge.className='badge info';
-  const openAiBadge=$('openai-badge');
-  if(cfg?.openai?.apiKey&&cfg.openai.apiKey!==''){
-    openAiBadge.textContent='configured'; openAiBadge.className='badge ok';
-  } else { openAiBadge.textContent='not configured'; openAiBadge.className='badge'; }
+  // Ollama is always local — always "configured"
+  const ob=$('ollama-badge'); ob.textContent='configured'; ob.className='badge info';
+  // OpenAI
+  const oab=$('openai-badge'), hasOAI=!!(cfg?.openai?.apiKey&&cfg.openai.apiKey!=='');
+  oab.textContent=hasOAI?'configured':'not configured'; oab.className=hasOAI?'badge ok':'badge';
+  // Claude
+  const cab=$('claude-badge'), hasClaude=!!(cfg?.claude?.apiKey&&cfg.claude.apiKey!=='');
+  cab.textContent=hasClaude?'configured':'not configured'; cab.className=hasClaude?'badge ok':'badge';
 }
 async function refreshAIStats(){
   try{
     const st=await api.llmGetStats();
-    if(!st||(!st.ollama&&!st.openai&&!st.errors)){ $('ai-stats').innerHTML='<span class="dim">No activity yet.</span>'; return; }
+    if(!st||(!st.ollama&&!st.openai&&!st.claude&&!st.errors)){
+      $('ai-stats').innerHTML='<span class="dim">No LLM activity yet — connect and talk to the companion.</span>'; return;
+    }
+    const ollamaColor = st.ollamaAvailable ? 'var(--green)' : 'var(--red)';
+    const openAiColor = st.openAiAvailable ? 'var(--green)' : 'var(--text3)';
+    const claudeColor = st.claudeAvailable ? 'var(--green)' : 'var(--text3)';
+    const hourly = st.openAiCallsThisHour!=null ? ` (${st.openAiCallsThisHour}/${st.hourlyLimit||30} this hr)` : '';
     $('ai-stats').innerHTML=`
-      <div style="display:flex;gap:16px;flex-wrap:wrap">
-        <div class="llm-stat"><div class="llm-dot ollama"></div>Ollama calls: <strong>${st.ollama||0}</strong></div>
-        <div class="llm-stat"><div class="llm-dot ${st.openAiAvailable?'openai':'off'}"></div>OpenAI calls: <strong>${st.openai||0}</strong></div>
-        <div class="llm-stat" style="color:var(--yellow)">Fallbacks: <strong>${st.fallbacks||0}</strong></div>
-        <div class="llm-stat" style="color:var(--red)">Errors: <strong>${st.errors||0}</strong></div>
-      </div>
-      <div style="margin-top:8px" class="dim">OpenAI this hour: ${st.openAiCallsThisHour||0} / ${st.hourlyLimit||30} limit &nbsp;·&nbsp;
-        Ollama: <span style="color:${st.ollamaAvailable?'var(--green)':'var(--red)'}">${st.ollamaAvailable?'available':'circuit open'}</span> &nbsp;·&nbsp;
-        OpenAI: <span style="color:${st.openAiAvailable?'var(--green)':'var(--text3)'}">${st.openAiAvailable?'available':'unavailable'}</span>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;align-items:center">
+        <div class="llm-stat"><div class="llm-dot ollama"></div><strong>${st.ollama||0}</strong>&thinsp;Ollama &nbsp;<span style="color:${ollamaColor};font-size:11px">${st.ollamaAvailable?'up':'circuit open'}</span></div>
+        <div class="llm-stat"><div class="llm-dot openai"></div><strong>${st.openai||0}</strong>&thinsp;OpenAI${hourly} &nbsp;<span style="color:${openAiColor};font-size:11px">${st.openAiAvailable?'up':'off'}</span></div>
+        <div class="llm-stat"><div class="llm-dot" style="background:#cc7722"></div><strong>${st.claude||0}</strong>&thinsp;Claude &nbsp;<span style="color:${claudeColor};font-size:11px">${st.claudeAvailable?'up':'off'}</span></div>
+        ${st.fallbacks?`<div class="llm-stat" style="color:var(--yellow)">⚠ ${st.fallbacks} fallback(s)</div>`:''}
+        ${st.errors?`<div class="llm-stat" style="color:var(--red)">✕ ${st.errors} error(s)</div>`:''}
       </div>`;
   }catch{}
 }
 $('ai-save').addEventListener('click',async()=>{
-  const key=$('ai-openai-key').value.trim();
+  const openaiKey=$('ai-openai-key').value.trim();
+  const claudeKey=$('ai-claude-key').value.trim();
+  const taskMap={};
+  document.querySelectorAll('.task-sel').forEach(sel=>{ taskMap[sel.dataset.task]=sel.value; });
   const patch={
-    ollama:{ baseUrl:$('ai-ollama-url').value, model:$('ai-ollama-model').value, dialogueModel:$('ai-ollama-model').value, timeoutMs:+$('ai-ollama-timeout').value },
-    openai:{ apiKey: key.includes('(already set')?undefined:key, model:$('ai-openai-model').value, timeoutMs:+$('ai-openai-timeout').value },
-    hybrid:{ dialogueProvider:$('ai-dialogue-prov').value, intentProvider:$('ai-intent-prov').value, strategy:$('ai-strategy').value, openAiHourlyLimit:+$('ai-hourly').value },
+    ollama:{ baseUrl:$('ai-ollama-url').value,
+             quickModel:$('ai-ollama-quick').value||'',
+             model:$('ai-ollama-model').value,
+             dialogueModel:$('ai-ollama-model').value,
+             timeoutMs:+$('ai-ollama-timeout').value },
+    openai:{ apiKey:openaiKey.includes('(already set')?undefined:openaiKey,
+             model:$('ai-openai-model').value, timeoutMs:+$('ai-openai-timeout').value },
+    claude:{ apiKey:claudeKey.includes('(already set')?undefined:claudeKey,
+             model:$('ai-claude-model').value, timeoutMs:+$('ai-claude-timeout').value },
+    hybrid:{ strategy:$('ai-strategy').value, openAiHourlyLimit:+$('ai-hourly').value },
+    routing:{ taskMap },
   };
   if(patch.openai.apiKey===undefined) delete patch.openai.apiKey;
+  if(patch.claude.apiKey===undefined) delete patch.claude.apiKey;
   const r=await api.llmSetConfig(patch).catch(e=>({ok:false,error:e.message}));
-  if(r?.ok){ addSysMsg('AI settings saved.'); updateAIBadges({openai:{apiKey:key||undefined}}); }
-  else showErr('ai-err','Save failed: '+(r?.error||'?'));
+  if(r?.ok){
+    addSysMsg('AI settings saved.');
+    updateAIBadges({ openai:{apiKey:openaiKey||undefined}, claude:{apiKey:claudeKey||undefined} });
+  } else showErr('ai-err','Save failed: '+(r?.error||'?'));
 });
 $('ollama-test').addEventListener('click',async()=>{
   $('ollama-test').disabled=true; $('ollama-test').textContent='Testing…';
@@ -1292,6 +1813,17 @@ $('openai-test').addEventListener('click',async()=>{
   el.className='test-result '+(r.ok?'ok':'fail');
   $('openai-badge').textContent=r.ok?'verified':'error'; $('openai-badge').className='badge '+(r.ok?'ok':'stale');
   $('openai-test').disabled=false; $('openai-test').textContent='Test';
+});
+
+$('claude-test').addEventListener('click',async()=>{
+  const key=$('ai-claude-key').value.trim();
+  if(!key.startsWith('sk-ant-')){ const el=$('claude-result'); el.textContent='Claude API key must start with sk-ant-'; el.className='test-result fail'; return; }
+  $('claude-test').disabled=true; $('claude-test').textContent='Testing…';
+  const r=await api.llmTestClaude(key,$('ai-claude-model').value).catch(e=>({ok:false,error:e.message}));
+  const el=$('claude-result'); el.textContent=r.ok?`✓ Claude OK — model: ${r.model||'?'}, response: "${r.response||''}"`:`✗ ${r.error||'Failed'}`;
+  el.className='test-result '+(r.ok?'ok':'fail');
+  $('claude-badge').textContent=r.ok?'verified':'error'; $('claude-badge').className='badge '+(r.ok?'ok':'stale');
+  $('claude-test').disabled=false; $('claude-test').textContent='Test';
 });
 
 // ── Character ─────────────────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 'use strict';
 
+const log = require('./logger');
+
 const STATES = {
   FOLLOWING: 'FOLLOWING',
   WAITING:   'WAITING',
@@ -23,14 +25,14 @@ class StateMachine {
 
   setState(state, params = {}) {
     if (!STATES[state]) {
-      console.warn(`[StateMachine] Unknown state "${state}" — ignoring`);
+      log.warn('StateMachine', `Unknown state "${state}" — ignoring`);
       return;
     }
     this._clearAll();
     const prev = this.currentState;
     this.currentState = state;
     this.stateParams  = params;
-    console.log(`[StateMachine] ${prev || 'null'} → ${state}`);
+    log.bot('StateMachine', `${prev || 'null'} → ${state}`);
 
     try {
       switch (state) {
@@ -41,7 +43,7 @@ class StateMachine {
         case STATES.OBSERVING: break; // Observer handles this passively
       }
     } catch (err) {
-      console.error(`[StateMachine] Failed to enter ${state}:`, err.message);
+      log.error('StateMachine', `Failed to enter ${state}: ${err.message}`);
     }
   }
 
@@ -59,14 +61,14 @@ class StateMachine {
   }
 
   _startFollowing(targetUsername) {
-    if (!targetUsername) { console.warn('[StateMachine] FOLLOWING: no target username'); return; }
+    if (!targetUsername) { log.warn('StateMachine', 'FOLLOWING: no target username'); return; }
 
     let GoalFollow, Movements;
     try {
       ({ Movements } = require('mineflayer-pathfinder'));
       ({ GoalFollow } = require('mineflayer-pathfinder').goals);
     } catch (err) {
-      console.error('[StateMachine] pathfinder unavailable:', err.message); return;
+      log.error('StateMachine', `pathfinder unavailable: ${err.message}`); return;
     }
 
     const movements = new Movements(this.bot);
@@ -86,7 +88,7 @@ class StateMachine {
           this.bot.lookAt(player.entity.position.offset(0, 1.6, 0)).catch(() => {});
         }
       } catch (err) {
-        console.warn('[StateMachine] Follow tick error:', err.message);
+        log.warn('StateMachine', `Follow tick error: ${err.message}`);
       }
     }, 800);
   }
@@ -106,7 +108,7 @@ class StateMachine {
       ({ Movements } = require('mineflayer-pathfinder'));
       ({ GoalNear } = require('mineflayer-pathfinder').goals);
     } catch (err) {
-      console.error('[StateMachine] pathfinder unavailable:', err.message); return;
+      log.error('StateMachine', `pathfinder unavailable: ${err.message}`); return;
     }
 
     const movements = new Movements(this.bot);
@@ -123,7 +125,7 @@ class StateMachine {
         const z = basePos.z + (Math.random() - 0.5) * r * 2;
         this.bot.pathfinder.setGoal(new GoalNear(x, basePos.y, z, 1.5), true);
       } catch (err) {
-        console.warn('[StateMachine] Loiter wander error:', err.message);
+        log.warn('StateMachine', `Loiter wander error: ${err.message}`);
       }
     };
 

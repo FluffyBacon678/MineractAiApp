@@ -28,6 +28,8 @@ pnpm-debug.log*
 # Logs
 *.log
 logs/
+/data/logs/
+launch-error.log
 
 # OS / editor noise
 .DS_Store

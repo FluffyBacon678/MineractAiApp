@@ -133,10 +133,11 @@ class PatrolWorker extends WorkerBase {
       this.emit('worker:threat', { mob: nearest.name, count: threats.length, pos: nearest.position });
       // Record in memory if inside a known area
       if (this.areaLocation) {
-        this.memory?.addEvent?.(this.areaLocation.id, {
-          type:  'threat',
-          mob:   nearest.name,
-          count: threats.length,
+        this.memory?.logAction?.({
+          type:       'threat_detected',
+          locationId: this.areaLocation.id,
+          mob:        nearest.name,
+          count:      threats.length,
         });
       }
     }

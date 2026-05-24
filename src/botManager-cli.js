@@ -64,9 +64,9 @@ rl.on('line', line => {
       rl.prompt(); return;
     }
     try {
-      const loc = bot.addMemory({ name, type: type || 'poi',
+      const result = bot.addMemory({ name, type: type || 'poi',
         coordinates: { x: Number(x), y: Number(y) || 64, z: Number(z) || 0 } });
-      console.log(`Memory saved: ${loc?.name || '?'}`);
+      console.log(`Memory saved: ${result?.location?.name || '?'}`);
     } catch (err) {
       console.error('Failed:', err.message);
     }

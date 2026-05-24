@@ -23,9 +23,41 @@ process.env.COMPANION_APP_ROOT = APP_ROOT;
 process.env.COMPANION_DATA_DIR = DATA_DIR;
 process.env.COMPANION_ENV_FILE = ENV_FILE;
 
+// ── Logger — init immediately so all subsequent requires can log ───────────────
+const log = require('../src/logger');
+log.init(path.join(DATA_DIR, 'logs'));
+log.info('Main', `App starting — v${require('../package.json').version}`);
+log.info('Main', `APP_ROOT: ${APP_ROOT}`);
+log.info('Main', `DATA_DIR: ${DATA_DIR}`);
+
+// ── Global error handlers — catch anything that slips through ─────────────────
+process.on('uncaughtException', (err) => {
+  log.exception('Main', 'Uncaught exception', err);
+  // Don't quit — let Electron decide based on the error
+});
+process.on('unhandledRejection', (reason, promise) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  const stack = reason instanceof Error ? reason.stack : '';
+  log.error('Main', `Unhandled promise rejection: ${msg}`, stack);
+});
+
 const BotManager = require('../src/botManager');
 
 nativeTheme.themeSource = 'dark';
+
+/** Shallow-deep merge: objects are merged one level down, primitives overwritten. */
+function _deepMerge(base, patch) {
+  if (!patch || typeof patch !== 'object') return base;
+  const out = { ...base };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object') {
+      out[k] = { ...base[k], ...v };
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
 
 const LOG_FILE   = path.join(DATA_DIR, 'activity-log.json');
 const PREFS_FILE = path.join(DATA_DIR, 'ui-prefs.json');
@@ -54,9 +86,16 @@ function saveLog() {
 }
 
 function appendLog(entry) {
+  // Compute msg first, then place it AFTER the spread so it is never
+  // overwritten by a falsy entry.msg (e.g. empty string from error events).
+  const computedMsg = typeof entry === 'string'
+    ? entry
+    : String(entry.msg || entry.message || entry.code || JSON.stringify(entry)).slice(0, 200);
+
   const record = typeof entry === 'string'
-    ? { at: Date.now(), msg: entry }
-    : { at: Date.now(), msg: String(entry.msg || entry.message || JSON.stringify(entry)).slice(0,200), ...entry };
+    ? { at: Date.now(), msg: computedMsg }
+    : { at: Date.now(), ...entry, msg: computedMsg };  // msg last → always wins
+
   persistedLog.push(record);
   saveLog();
   win?.webContents?.send('bot:log', record);
@@ -106,9 +145,18 @@ function createWindow() {
   win.on('closed', () => { win = null; });
 }
 
-app.whenReady().then(() => { loadLog(); createWindow(); });
-app.on('window-all-closed', () => { bot?.destroy(); if (process.platform !== 'darwin') app.quit(); });
+app.whenReady().then(() => {
+  log.info('Main', 'Electron app ready — creating window');
+  loadLog();
+  createWindow();
+});
+app.on('window-all-closed', () => {
+  log.info('Main', 'All windows closed — quitting');
+  bot?.destroy();
+  if (process.platform !== 'darwin') app.quit();
+});
 app.on('activate', () => { if (!win) createWindow(); });
+app.on('before-quit', () => log.info('Main', 'App before-quit'));
 
 // ── Bot control ───────────────────────────────────────────────────────────────
 
@@ -118,8 +166,8 @@ ipcMain.handle('bot:connect', (_, cfg) => {
     bot = new BotManager(cfg || {});
 
     const fwd = (ch, d) => win?.webContents?.send(ch, d);
-    bot.on('status',        s => fwd('bot:status',      s));
-    bot.on('chat',          c => fwd('bot:chat',        c));
+    bot.on('status',        s => { fwd('bot:status', s); log.bot('Main', `Status → ${typeof s === 'object' ? JSON.stringify(s) : s}`); });
+    bot.on('chat',          c => { fwd('bot:chat',        c); log.bot('Main', `Chat from ${c.from}: ${c.message}`); });
     bot.on('resources',     r => fwd('bot:resources',   r));
     bot.on('profile',       p => fwd('bot:profile',     p));
     bot.on('memory',        m => fwd('bot:memory',      m));
@@ -127,21 +175,33 @@ ipcMain.handle('bot:connect', (_, cfg) => {
     bot.on('staleness',     s => fwd('bot:staleness',   s));
     bot.on('character',     c => fwd('bot:character',   c));
     bot.on('llm:used',      e => fwd('bot:llm',         e));
-    bot.on('llm:fallback',  e => fwd('bot:llm',         { ...e, isFallback: true }));
-    bot.on('llm:openai-error', e => fwd('bot:llm-error', e));
+    bot.on('llm:fallback',  e => { fwd('bot:llm', { ...e, isFallback: true }); log.warn('Main', `LLM fallback: ${e.from} → ${e.to}`, `callType: ${e.callType}`); });
+    bot.on('llm:openai-error', e => { fwd('bot:llm-error', e); log.error('Main', `OpenAI error: ${e}`); });
     bot.on('llm:config-updated', e => fwd('bot:llm-config', e));
-    bot.on('worker:start',  e => fwd('bot:worker',      { event: 'start', ...e }));
-    bot.on('worker:done',   e => fwd('bot:worker',      { event: 'done', ...e }));
-    bot.on('worker:error',  e => fwd('bot:worker',      { event: 'error', ...e }));
+    bot.on('worker:start',  e => { fwd('bot:worker', { event: 'start', ...e }); log.bot('Main', `Worker started: ${e.type || e.label}`); });
+    bot.on('worker:done',   e => { fwd('bot:worker', { event: 'done',  ...e }); log.bot('Main', `Worker done: ${e.type || e.label}`); });
+    bot.on('worker:error',  e => { fwd('bot:worker', { event: 'error', ...e }); log.error('Main', `Worker error: ${e.type}`, e.message); });
     bot.on('worker:progress',e=> fwd('bot:worker',      { event: 'progress', ...e }));
-    bot.on('worker:threat', e => fwd('bot:worker',      { event: 'threat', ...e }));
+    bot.on('worker:stop',   e => fwd('bot:worker',      { event: 'stop', ...e }));
+    bot.on('worker:threat', e => { fwd('bot:worker', { event: 'threat', ...e }); log.warn('Main', `Threat detected: ${e.location || 'unknown location'}`); });
+    bot.on('social:changed',e => fwd('bot:social',      e));
+    bot.on('bgevent',       e => fwd('bot:bgevent',     e));
     bot.on('log',           l => appendLog(l));
-    bot.on('error',         e => { appendLog({ type:'error', msg: String(e) }); fwd('bot:error', e); });
+    bot.on('error',         e => {
+      const msg = String(e?.message || e);
+      appendLog({ type: 'error', msg });
+      log.error('Main', `Bot error event: ${msg}`);
+      fwd('bot:error', e);
+    });
 
+    const host = cfg?.host || cfg?.MC_HOST || 'localhost';
+    const port = cfg?.port || cfg?.MC_PORT || 25565;
+    log.bot('Main', `Connect requested → ${host}:${port}`);
     bot.connect();
     appendLog('Bot connect requested');
     return { ok: true };
   } catch (err) {
+    log.exception('Main', 'bot:connect IPC handler threw', err);
     appendLog({ type: 'error', msg: `Connect failed: ${err.message}` });
     return { ok: false, error: err.message };
   }
@@ -221,19 +281,24 @@ ipcMain.handle('bot:offlineChat', async (_, msg, cfg) => {
 
 ipcMain.handle('llm:getConfig', () => {
   try {
+    let src;
     if (bot) {
-      return {
-        openai:  { ...bot.cfg.openai,  apiKey: bot.cfg.openai.apiKey ? '***set***' : '' },
-        ollama:  bot.cfg.ollama,
-        hybrid:  bot.cfg.hybrid,
-      };
+      src = bot.cfg;
+    } else {
+      // Merge saved LLM prefs (from previous llmSetConfig calls) over defaults
+      const defaults = require('../src/config');
+      const saved    = loadPrefs().llmConfig || {};
+      src = _deepMerge(defaults, saved);
     }
-    // Read from config defaults
-    const cfg = require('../src/config');
     return {
-      openai: { ...cfg.openai, apiKey: cfg.openai.apiKey ? '***set***' : '' },
-      ollama: cfg.ollama,
-      hybrid: cfg.hybrid,
+      ollama:        src.ollama,
+      openai:        { ...src.openai, apiKey: src.openai?.apiKey ? '***set***' : '' },
+      claude:        { ...src.claude, apiKey: src.claude?.apiKey ? '***set***' : '' },
+      hybrid:        src.hybrid,
+      routing:       src.routing,
+      monologue:     src.monologue,
+      conversation:  src.conversation,
+      planning:      src.planning,
     };
   } catch (err) { return {}; }
 });
@@ -296,6 +361,56 @@ ipcMain.handle('llm:testOpenAI', async (_, apiKey, model) => {
   } catch (err) {
     return { ok: false, error: err.name === 'TimeoutError' ? 'Timed out' : err.message };
   }
+});
+
+ipcMain.handle('llm:testClaude', async (_, apiKey, model) => {
+  if (!apiKey?.startsWith('sk-ant-')) return { ok: false, error: 'Claude API key must start with sk-ant-' };
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type':      'application/json',
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model:      model || 'claude-haiku-4-5-20251001',
+        max_tokens: 10,
+        messages:   [{ role: 'user', content: 'Reply with only: ok' }],
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.status === 401) return { ok: false, error: 'Invalid API key' };
+    if (res.status === 429) return { ok: false, error: 'Rate limited' };
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    const data = await res.json();
+    return { ok: true, model: data.model, response: data?.content?.[0]?.text?.trim() };
+  } catch (err) {
+    return { ok: false, error: err.name === 'TimeoutError' ? 'Timed out' : err.message };
+  }
+});
+
+// ── Character ─────────────────────────────────────────────────────────────────
+
+// ── Background Events ─────────────────────────────────────────────────────────
+
+ipcMain.handle('bgevents:getAll', () => bot?.getBgEvents() ?? []);
+ipcMain.handle('bgevents:clear',  () => { bot?.clearBgEvents(); return { ok: true }; });
+
+// ── Social energy ─────────────────────────────────────────────────────────────
+
+ipcMain.handle('social:get', () => {
+  const defaults = { enabled: true, drainPerExchange: 8, chargePerMinute: 5 };
+  const saved    = loadPrefs().socialConfig || {};
+  return { level: bot?.social?.level ?? 100, config: { ...defaults, ...saved } };
+});
+
+ipcMain.handle('social:set', (_, p) => {
+  if (!p) return { ok: false };
+  if (bot) bot.updateSocialConfig(p);
+  const prev = loadPrefs().socialConfig || {};
+  savePrefs({ socialConfig: { ...prev, ...p } });
+  return { ok: true };
 });
 
 // ── Character ─────────────────────────────────────────────────────────────────
@@ -422,6 +537,34 @@ ipcMain.handle('log:clear',  ()  => { try { persistedLog = []; saveLog(); return
 
 ipcMain.handle('prefs:get', ()     => { try { return loadPrefs(); } catch { return {}; } });
 ipcMain.handle('prefs:set', (_, p) => { try { return savePrefs(p); } catch { return {}; } });
+
+// ── Conversation buffer ───────────────────────────────────────────────────────
+
+ipcMain.handle('conv:get', () => {
+  try {
+    const buf = bot?.convBuffer;
+    if (!buf) {
+      // Even without a live bot, read the persisted file so the UI can show history
+      const ConversationBuffer = require('../src/ai/conversationBuffer');
+      const tmp = new ConversationBuffer();
+      tmp.load();
+      return { turns: tmp._turns, summary: tmp._summary, stats: tmp.loadedStats() };
+    }
+    return { turns: buf._turns, summary: buf._summary, stats: buf.loadedStats() };
+  } catch { return { turns: [], summary: null, stats: { turns: 0 } }; }
+});
+
+ipcMain.handle('conv:clear', () => {
+  try {
+    if (bot?.convBuffer) bot.convBuffer.clear();
+    // Also wipe the disk copy
+    const { resolveDataFile } = require('../src/paths');
+    const fp = resolveDataFile('conversation-buffer.json');
+    if (require('fs').existsSync(fp)) require('fs').unlinkSync(fp);
+    log.bot('Main', 'Conversation history cleared by user');
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 

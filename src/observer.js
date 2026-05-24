@@ -1,5 +1,7 @@
 'use strict';
 
+const log = require('./logger');
+
 /**
  * Observer — scans the Minecraft world and drives ambient comments.
  * Pure read-only. Never triggers movement or world modification.
@@ -25,10 +27,24 @@ const PROFILE_TALK_MS  = { lightweight:120_000, normal: 45_000, heavy: 25_000 };
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
+// Workstation block names → tag used in WorldMemory
+const WORKSTATION_TAGS = {
+  crafting_table:   'crafting_table',
+  furnace:          'furnace',
+  blast_furnace:    'furnace',
+  smoker:           'furnace',
+  enchanting_table: 'enchanting_table',
+  anvil:            'anvil',
+  chipped_anvil:    'anvil',
+  damaged_anvil:    'anvil',
+};
+
 class Observer {
-  constructor(bot, config) {
+  constructor(bot, config, memory = null, dialogue = null) {
     this.bot             = bot;
     this.config          = config;
+    this.memory          = memory;    // WorldMemory — optional, for auto-detection
+    this.dialogue        = dialogue;  // Dialogue — optional, for LLM ambient comments
     this.stateMachine    = null;
     this.lastObservation = 'a quiet area';
 
@@ -55,7 +71,7 @@ class Observer {
     if (this._currentProfile === profile) return;
     this._currentProfile = profile;
     if (this._isRunning) {
-      console.log(`[Observer] Profile → ${profile}, restarting timers`);
+      log.bot('Observer', `Profile → ${profile}, restarting timers`);
       this._startTimers(); // clears old timers and starts new ones
     }
   }
@@ -73,7 +89,7 @@ class Observer {
       this.lastObservation = obs;
       return obs;
     } catch (err) {
-      console.warn('[Observer] describeEnvironment error:', err.message);
+      log.warn('Observer', `describeEnvironment error: ${err.message}`);
       return 'I had trouble reading the surroundings.';
     }
   }
@@ -97,7 +113,7 @@ class Observer {
       try {
         this.lastObservation = this._buildObservation();
       } catch (err) {
-        console.warn('[Observer] Scan error:', err.message);
+        log.warn('Observer', `Scan error: ${err.message}`);
       }
     }, scanMs);
 
@@ -108,12 +124,25 @@ class Observer {
       if (this._currentProfile === 'lightweight') return;
 
       try {
-        const comment = this._pickComment();
+        const obs = this.lastObservation;
+        let comment;
+
+        if (this.dialogue) {
+          // Use LLM for in-character ambient speech
+          const ctx = { state: this.stateMachine?.currentState || 'idle', environment: obs };
+          const prompt = `You notice: ${obs}. Make one short, natural observation (1 sentence). Stay in character.`;
+          const { text } = await this.dialogue.ambient(prompt, ctx).catch(() => ({ text: null }));
+          comment = text;
+        } else {
+          // Fallback: hardcoded strings when no dialogue available
+          comment = this._pickComment();
+        }
+
         if (!comment) return;
         await delay(1000 + Math.random() * 2500);
         if (this.bot?.entity && this._isRunning) this.bot.chat(comment);
       } catch (err) {
-        console.warn('[Observer] Talk tick error:', err.message);
+        log.warn('Observer', `Talk tick error: ${err.message}`);
       }
     }, talkMs);
   }
@@ -168,10 +197,59 @@ class Observer {
       const chest = this.bot.findBlock({ matching: b => b.name === 'chest', maxDistance: 10 });
       if (chest) notes.push('a chest nearby');
 
+      // Auto-detect workstations and beds → save to WorldMemory if not already known nearby
+      this._detectWorkstations(pos);
+
       return notes.join(', ') || null;
     } catch {
       return null;
     }
+  }
+
+  /** Silently auto-save newly discovered beds / workstations to WorldMemory. */
+  _detectWorkstations(pos) {
+    if (!this.memory || !pos) return;
+    try {
+      // Beds
+      const bed = this.bot.findBlock({ matching: b => b.name?.endsWith('_bed'), maxDistance: 16 });
+      if (bed) this._autoSaveWorkstation('bed', 'bed', bed.position, pos);
+
+      // Workstations
+      for (const [blockName, tag] of Object.entries(WORKSTATION_TAGS)) {
+        const block = this.bot.findBlock({ matching: b => b.name === blockName, maxDistance: 20 });
+        if (block) this._autoSaveWorkstation('workstation', tag, block.position, pos);
+      }
+    } catch { /* silent */ }
+  }
+
+  _autoSaveWorkstation(type, tag, blockPos, botPos) {
+    if (!this.memory) return;
+
+    // Dedup: skip if we already know about this type within 8 blocks
+    const existing = type === 'bed'
+      ? this.memory.findByType('bed')
+      : this.memory.all().filter(l => l.type === 'workstation' && l.tags?.includes(tag));
+
+    const tooClose = existing.some(l => {
+      const dx = l.coordinates.x - blockPos.x;
+      const dz = l.coordinates.z - blockPos.z;
+      const dy = l.coordinates.y - blockPos.y;
+      return Math.sqrt(dx*dx + dy*dy + dz*dz) < 8;
+    });
+    if (tooClose) return;
+
+    const label = type === 'bed' ? 'Bed' : tag.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const name  = `${label} (${Math.floor(blockPos.x)}, ${Math.floor(blockPos.z)})`;
+    try {
+      this.memory.save({
+        name,
+        type,
+        tags:        [tag],
+        coordinates: { x: Math.floor(blockPos.x), y: Math.floor(blockPos.y), z: Math.floor(blockPos.z) },
+        confidence:  0.95,
+        radius:      4,
+      });
+    } catch { /* ignore duplicate-name save errors */ }
   }
 
   _pickComment() {

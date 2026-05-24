@@ -6,6 +6,7 @@
  */
 
 const EventEmitter  = require('events');
+const log           = require('../logger');
 const FarmWorker    = require('./farmWorker');
 const PatrolWorker  = require('./patrolWorker');
 const CollectWorker = require('./collectWorker');
@@ -18,12 +19,17 @@ class WorkerManager extends EventEmitter {
     this.memory = memory;
     this.perms  = perms;
 
-    this._active = null; // currently running worker
-    this._label  = null;
+    this._active     = null; // currently running worker
+    this._label      = null;
+    this._activeType = null;
   }
 
   get isWorking()    { return this._active?.isRunning ?? false; }
   get currentLabel() { return this._label || null; }
+  get currentTask()  {
+    if (!this._active?.isRunning) return null;
+    return { type: this._activeType, label: this._label };
+  }
 
   /** Stop any running worker, then start a new one. */
   async start(workerType, options = {}) {
@@ -53,21 +59,23 @@ class WorkerManager extends EventEmitter {
         break;
       }
       default:
-        console.warn('[WorkerManager] Unknown worker type:', workerType);
+        log.warn('WorkerManager', `Unknown worker type: ${workerType}`);
         return false;
     }
 
+    this._activeType = workerType;
+
     // Forward worker events
     worker.on('worker:start',    e => { this._label = e.label; this.emit('worker:start', e); });
-    worker.on('worker:done',     e => { this._active = null; this._label = null; this.emit('worker:done', e); });
-    worker.on('worker:error',    e => { this._active = null; this._label = null; this.emit('worker:error', e); });
-    worker.on('worker:stop',     e => this.emit('worker:stop', e));
+    worker.on('worker:done',     e => { this._active = null; this._label = null; this._activeType = null; this.emit('worker:done', e); });
+    worker.on('worker:error',    e => { this._active = null; this._label = null; this._activeType = null; this.emit('worker:error', e); });
+    worker.on('worker:stop',     e => { this._active = null; this._label = null; this._activeType = null; this.emit('worker:stop', e); });
     worker.on('worker:progress', e => this.emit('worker:progress', e));
     worker.on('worker:threat',   e => this.emit('worker:threat', e));
 
     this._active = worker;
     worker.start().catch(err => {
-      console.error('[WorkerManager] Unhandled worker error:', err.message);
+      log.error('WorkerManager', `Unhandled worker error: ${err.message}`);
       this._active = null;
       this._label  = null;
     });

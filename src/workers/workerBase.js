@@ -14,6 +14,7 @@
  */
 
 const EventEmitter = require('events');
+const log          = require('../logger');
 
 class WorkerBase extends EventEmitter {
   /**
@@ -54,7 +55,7 @@ class WorkerBase extends EventEmitter {
       await this.run();
     } catch (err) {
       if (!this._stopFlag) {
-        console.error(`[${this.constructor.name}] Error:`, err.message);
+        log.error('Worker', `${this.constructor.name} error: ${err.message}`);
         this.emit('worker:error', { label: this.label, error: err.message });
       }
     } finally {

@@ -3,7 +3,7 @@
 const SYSTEM = `You are the memory extractor for a Minecraft AI companion.
 Detect if the player's message defines, names, or modifies a saved location.
 
-Location types: house, ai_home, farm, storage, village, danger, building, animal_pen, waypoint, poi
+Location types: house, ai_home, farm, storage, village, danger, building, animal_pen, waypoint, poi, bed, workstation
 Owner values: player, ai, neutral
 
 Respond ONLY with valid JSON — no markdown, no extra text.

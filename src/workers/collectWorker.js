@@ -30,8 +30,9 @@ class CollectWorker extends WorkerBase {
     let collected = 0;
 
     const findDrop = () => Object.values(this.bot.entities || {}).find(e =>
-      e.type === 'object' && e.objectType === 'Item' &&
-      e.position.distanceTo(centre) < COLLECT_RADIUS
+      e.type === 'object' &&
+      (e.objectType === 'Item' || e.name === 'item') &&
+      e.position?.distanceTo(centre) < COLLECT_RADIUS
     );
 
     const startTime = Date.now();

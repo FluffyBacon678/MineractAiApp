@@ -23,6 +23,24 @@ process.env.COMPANION_APP_ROOT = APP_ROOT;
 process.env.COMPANION_DATA_DIR = DATA_DIR;
 process.env.COMPANION_ENV_FILE = ENV_FILE;
 
+// ── Logger — init immediately so all subsequent requires can log ───────────────
+const log = require('../src/logger');
+log.init(path.join(DATA_DIR, 'logs'));
+log.info('Main', `App starting — v${require('../package.json').version}`);
+log.info('Main', `APP_ROOT: ${APP_ROOT}`);
+log.info('Main', `DATA_DIR: ${DATA_DIR}`);
+
+// ── Global error handlers — catch anything that slips through ─────────────────
+process.on('uncaughtException', (err) => {
+  log.exception('Main', 'Uncaught exception', err);
+  // Don't quit — let Electron decide based on the error
+});
+process.on('unhandledRejection', (reason, promise) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  const stack = reason instanceof Error ? reason.stack : '';
+  log.error('Main', `Unhandled promise rejection: ${msg}`, stack);
+});
+
 const BotManager = require('../src/botManager');
 
 nativeTheme.themeSource = 'dark';
@@ -120,9 +138,18 @@ function createWindow() {
   win.on('closed', () => { win = null; });
 }
 
-app.whenReady().then(() => { loadLog(); createWindow(); });
-app.on('window-all-closed', () => { bot?.destroy(); if (process.platform !== 'darwin') app.quit(); });
+app.whenReady().then(() => {
+  log.info('Main', 'Electron app ready — creating window');
+  loadLog();
+  createWindow();
+});
+app.on('window-all-closed', () => {
+  log.info('Main', 'All windows closed — quitting');
+  bot?.destroy();
+  if (process.platform !== 'darwin') app.quit();
+});
 app.on('activate', () => { if (!win) createWindow(); });
+app.on('before-quit', () => log.info('Main', 'App before-quit'));
 
 // ── Bot control ───────────────────────────────────────────────────────────────
 
@@ -132,8 +159,8 @@ ipcMain.handle('bot:connect', (_, cfg) => {
     bot = new BotManager(cfg || {});
 
     const fwd = (ch, d) => win?.webContents?.send(ch, d);
-    bot.on('status',        s => fwd('bot:status',      s));
-    bot.on('chat',          c => fwd('bot:chat',        c));
+    bot.on('status',        s => { fwd('bot:status', s); log.bot('Main', `Status → ${typeof s === 'object' ? JSON.stringify(s) : s}`); });
+    bot.on('chat',          c => { fwd('bot:chat',        c); log.bot('Main', `Chat from ${c.from}: ${c.message}`); });
     bot.on('resources',     r => fwd('bot:resources',   r));
     bot.on('profile',       p => fwd('bot:profile',     p));
     bot.on('memory',        m => fwd('bot:memory',      m));
@@ -141,24 +168,33 @@ ipcMain.handle('bot:connect', (_, cfg) => {
     bot.on('staleness',     s => fwd('bot:staleness',   s));
     bot.on('character',     c => fwd('bot:character',   c));
     bot.on('llm:used',      e => fwd('bot:llm',         e));
-    bot.on('llm:fallback',  e => fwd('bot:llm',         { ...e, isFallback: true }));
-    bot.on('llm:openai-error', e => fwd('bot:llm-error', e));
+    bot.on('llm:fallback',  e => { fwd('bot:llm', { ...e, isFallback: true }); log.warn('Main', `LLM fallback: ${e.from} → ${e.to}`, `callType: ${e.callType}`); });
+    bot.on('llm:openai-error', e => { fwd('bot:llm-error', e); log.error('Main', `OpenAI error: ${e}`); });
     bot.on('llm:config-updated', e => fwd('bot:llm-config', e));
-    bot.on('worker:start',  e => fwd('bot:worker',      { event: 'start', ...e }));
-    bot.on('worker:done',   e => fwd('bot:worker',      { event: 'done', ...e }));
-    bot.on('worker:error',  e => fwd('bot:worker',      { event: 'error', ...e }));
+    bot.on('worker:start',  e => { fwd('bot:worker', { event: 'start', ...e }); log.bot('Main', `Worker started: ${e.type || e.label}`); });
+    bot.on('worker:done',   e => { fwd('bot:worker', { event: 'done',  ...e }); log.bot('Main', `Worker done: ${e.type || e.label}`); });
+    bot.on('worker:error',  e => { fwd('bot:worker', { event: 'error', ...e }); log.error('Main', `Worker error: ${e.type}`, e.message); });
     bot.on('worker:progress',e=> fwd('bot:worker',      { event: 'progress', ...e }));
     bot.on('worker:stop',   e => fwd('bot:worker',      { event: 'stop', ...e }));
-    bot.on('worker:threat', e => fwd('bot:worker',      { event: 'threat', ...e }));
+    bot.on('worker:threat', e => { fwd('bot:worker', { event: 'threat', ...e }); log.warn('Main', `Threat detected: ${e.location || 'unknown location'}`); });
     bot.on('social:changed',e => fwd('bot:social',      e));
     bot.on('bgevent',       e => fwd('bot:bgevent',     e));
     bot.on('log',           l => appendLog(l));
-    bot.on('error',         e => { appendLog({ type:'error', msg: String(e) }); fwd('bot:error', e); });
+    bot.on('error',         e => {
+      const msg = String(e?.message || e);
+      appendLog({ type: 'error', msg });
+      log.error('Main', `Bot error event: ${msg}`);
+      fwd('bot:error', e);
+    });
 
+    const host = cfg?.host || cfg?.MC_HOST || 'localhost';
+    const port = cfg?.port || cfg?.MC_PORT || 25565;
+    log.bot('Main', `Connect requested → ${host}:${port}`);
     bot.connect();
     appendLog('Bot connect requested');
     return { ok: true };
   } catch (err) {
+    log.exception('Main', 'bot:connect IPC handler threw', err);
     appendLog({ type: 'error', msg: `Connect failed: ${err.message}` });
     return { ok: false, error: err.message };
   }

@@ -1,5 +1,7 @@
 'use strict';
 
+const log = require('../logger');
+
 /**
  * LLMRouter — routes LLM calls between Ollama, OpenAI, and Claude.
  *
@@ -248,30 +250,36 @@ class LLMRouter extends EventEmitter {
   }
 
   async _callOllama(messages, opts = {}) {
-    if (this._ollamaCircuitOpen()) return null;
+    if (this._ollamaCircuitOpen()) {
+      log.warn('LLMRouter', 'Ollama circuit open — skipping call');
+      return null;
+    }
 
+    const model     = opts.model || this.config.ollama?.dialogueModel || this.config.ollama?.model || 'llama3.2';
     const timeoutMs = this.config.ollama?.timeoutMs || 20_000;
+    const t0        = Date.now();
 
     try {
       const res = await fetch(`${this.config.ollama.baseUrl}/api/chat`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
-          model:    opts.model || this.config.ollama.dialogueModel || this.config.ollama.model,
+          model,
           messages,
-          stream:   false,
-          options:  { temperature: opts.temperature ?? 0.75, num_predict: opts.maxTokens ?? 90 },
+          stream:  false,
+          options: { temperature: opts.temperature ?? 0.75, num_predict: opts.maxTokens ?? 90 },
         }),
         signal: AbortSignal.timeout(timeoutMs),
       });
 
-      if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
       const data = await res.json();
       const text = data?.message?.content?.trim() || null;
-      if (!text) throw new Error('Empty response');
+      if (!text) throw new Error('Empty response body');
 
       this._ollamaFails = 0;
       this.stats.ollama++;
+      log.llm('LLMRouter', `ollama:${model} → ${text.length} chars in ${Date.now() - t0}ms`, `tokens_requested:${opts.maxTokens ?? 90}`);
       this.emit('router:used', { provider: 'ollama' });
       return text;
 
@@ -281,25 +289,32 @@ class LLMRouter extends EventEmitter {
       this.stats.errors++;
       const firstFail = this._ollamaFails === 1;
       if (err.name === 'TimeoutError') {
-        console.warn(`[LLMRouter] Ollama timed out (${this.config.ollama?.timeoutMs}ms)`);
+        log.warn('LLMRouter', `Ollama timed out after ${Date.now() - t0}ms`, `model:${model} timeout_cfg:${timeoutMs}ms`);
         if (firstFail) this.emit('router:ollama-error', 'Timed out — is Ollama running?');
       } else {
-        console.error('[LLMRouter] Ollama error:', err.message);
+        log.error('LLMRouter', `Ollama call failed after ${Date.now() - t0}ms`, `model:${model} error:${err.message} consecutive_fails:${this._ollamaFails}`);
         if (firstFail) this.emit('router:ollama-error', err.message);
       }
-      if (this._ollamaFails >= 5) this.emit('router:ollama-circuit-open');
+      if (this._ollamaFails >= 5) {
+        log.error('LLMRouter', 'Ollama circuit breaker OPEN — 5 consecutive failures');
+        this.emit('router:ollama-circuit-open');
+      }
       return null;
     }
   }
 
   async _callOpenAI(messages, opts = {}) {
-    if (this._openAiCircuitOpen() || this._overHourlyLimit()) return null;
+    if (this._openAiCircuitOpen() || this._overHourlyLimit()) {
+      log.warn('LLMRouter', `OpenAI skipped — circuit:${this._openAiCircuitOpen()} over_limit:${this._overHourlyLimit()}`);
+      return null;
+    }
 
     const apiKey    = this.config.openai?.apiKey;
     const model     = opts.model || this.config.openai?.model || 'gpt-4o-mini';
     const timeoutMs = this.config.openai?.timeoutMs || 15_000;
-    if (!apiKey) return null;
+    if (!apiKey) { log.warn('LLMRouter', 'OpenAI call skipped — no API key configured'); return null; }
 
+    const t0 = Date.now();
     try {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method:  'POST',
@@ -308,17 +323,31 @@ class LLMRouter extends EventEmitter {
         signal:  AbortSignal.timeout(timeoutMs),
       });
 
-      if (res.status === 401) { this._openAiFails = 99; this.emit('router:openai-auth-error'); return null; }
-      if (res.status === 429) { this._openAiFails++; this._openAiFailedAt = Date.now(); this.emit('router:openai-rate-limited'); return null; }
-      if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`);
+      if (res.status === 401) {
+        log.error('LLMRouter', 'OpenAI 401 Unauthorized — API key is invalid or expired');
+        this._openAiFails = 99;
+        this.emit('router:openai-auth-error');
+        return null;
+      }
+      if (res.status === 429) {
+        log.warn('LLMRouter', 'OpenAI 429 rate limited', `calls_this_hour:${this.openAiCallsThisHour()} limit:${this._hourlyLimit}`);
+        this._openAiFails++;
+        this._openAiFailedAt = Date.now();
+        this.emit('router:openai-rate-limited');
+        return null;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
       const data = await res.json();
       const text = data?.choices?.[0]?.message?.content?.trim() || null;
-      if (!text) throw new Error('Empty OpenAI response');
+      if (!text) throw new Error('Empty response from OpenAI');
 
+      const usage = data?.usage;
       this._openAiCalls.push(Date.now());
       this._openAiFails = 0;
       this.stats.openai++;
+      log.llm('LLMRouter', `openai:${model} → ${text.length} chars in ${Date.now() - t0}ms`,
+        `prompt_tokens:${usage?.prompt_tokens} completion_tokens:${usage?.completion_tokens} calls_this_hour:${this.openAiCallsThisHour()}`);
       this.emit('router:used', { provider: 'openai', model });
       return text;
 
@@ -326,8 +355,11 @@ class LLMRouter extends EventEmitter {
       this._openAiFails++;
       this._openAiFailedAt = Date.now();
       this.stats.errors++;
-      if (err.name === 'TimeoutError') console.warn('[LLMRouter] OpenAI timed out');
-      else console.error('[LLMRouter] OpenAI error:', err.message);
+      if (err.name === 'TimeoutError') {
+        log.warn('LLMRouter', `OpenAI timed out after ${Date.now() - t0}ms`, `model:${model} timeout_cfg:${timeoutMs}ms`);
+      } else {
+        log.error('LLMRouter', `OpenAI call failed after ${Date.now() - t0}ms`, `model:${model} error:${err.message} consecutive_fails:${this._openAiFails}`);
+      }
       return null;
     }
   }
@@ -338,12 +370,13 @@ class LLMRouter extends EventEmitter {
     const apiKey    = this.config.claude?.apiKey;
     const model     = opts.model || this.config.claude?.model || 'claude-haiku-4-5-20251001';
     const timeoutMs = this.config.claude?.timeoutMs || 30_000;
-    if (!apiKey) return null;
+    if (!apiKey) { log.warn('LLMRouter', 'Claude call skipped — no API key configured'); return null; }
 
     // Anthropic API: system prompt is a separate top-level field
     const systemMsg  = messages.find(m => m.role === 'system');
     const chatMsgs   = messages.filter(m => m.role !== 'system');
 
+    const t0 = Date.now();
     try {
       const body = {
         model,
@@ -363,16 +396,29 @@ class LLMRouter extends EventEmitter {
         signal: AbortSignal.timeout(timeoutMs),
       });
 
-      if (res.status === 401) { this._claudeFails = 99; this.emit('router:claude-auth-error'); return null; }
-      if (res.status === 429) { this._claudeFails++; this._claudeFailedAt = Date.now(); return null; }
-      if (!res.ok) throw new Error(`Claude HTTP ${res.status}`);
+      if (res.status === 401) {
+        log.error('LLMRouter', 'Claude 401 Unauthorized — API key is invalid or expired');
+        this._claudeFails = 99;
+        this.emit('router:claude-auth-error');
+        return null;
+      }
+      if (res.status === 429) {
+        log.warn('LLMRouter', 'Claude 429 rate limited');
+        this._claudeFails++;
+        this._claudeFailedAt = Date.now();
+        return null;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
       const data = await res.json();
       const text = data?.content?.[0]?.text?.trim() || null;
-      if (!text) throw new Error('Empty Claude response');
+      if (!text) throw new Error('Empty response from Claude');
 
+      const usage = data?.usage;
       this._claudeFails = 0;
       this.stats.claude++;
+      log.llm('LLMRouter', `claude:${model} → ${text.length} chars in ${Date.now() - t0}ms`,
+        `input_tokens:${usage?.input_tokens} output_tokens:${usage?.output_tokens}`);
       this.emit('router:used', { provider: 'claude', model });
       return text;
 
@@ -380,8 +426,11 @@ class LLMRouter extends EventEmitter {
       this._claudeFails++;
       this._claudeFailedAt = Date.now();
       this.stats.errors++;
-      if (err.name === 'TimeoutError') console.warn('[LLMRouter] Claude timed out');
-      else console.error('[LLMRouter] Claude error:', err.message);
+      if (err.name === 'TimeoutError') {
+        log.warn('LLMRouter', `Claude timed out after ${Date.now() - t0}ms`, `model:${model} timeout_cfg:${timeoutMs}ms`);
+      } else {
+        log.error('LLMRouter', `Claude call failed after ${Date.now() - t0}ms`, `model:${model} error:${err.message} consecutive_fails:${this._claudeFails}`);
+      }
       return null;
     }
   }

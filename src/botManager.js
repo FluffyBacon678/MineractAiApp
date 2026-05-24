@@ -1,5 +1,6 @@
 'use strict';
 
+const log            = require('./logger');
 const mineflayer     = require('mineflayer');
 const { pathfinder } = require('mineflayer-pathfinder');
 const EventEmitter   = require('events');
@@ -130,20 +131,17 @@ class BotManager extends EventEmitter {
     this._setStatus('connecting');
 
     const username = this.cfg.bot?.username || this.character.getName() || 'Bud';
+    const host     = this.cfg.bot?.host || 'localhost';
+    const port     = this.cfg.bot?.port || 25565;
+    const version  = this.cfg.bot?.version || '1.21.1';
 
-    const host = this.cfg.bot?.host || 'localhost';
-    const port = this.cfg.bot?.port || 25565;
+    log.bot('BotManager', `Connecting → ${host}:${port} as ${username} (MC ${version})`);
     this._bgEvent('connection', 'info', `Connecting to ${host}:${port} as ${username}`);
 
     try {
-      this.bot = mineflayer.createBot({
-        host,
-        port,
-        username,
-        version: this.cfg.bot?.version || '1.21.1',
-        auth:    'offline',
-      });
+      this.bot = mineflayer.createBot({ host, port, username, version, auth: 'offline' });
     } catch (err) {
+      log.exception('BotManager', 'mineflayer.createBot threw', err);
       this.emit('error', `createBot failed: ${err.message}`);
       this._bgEvent('connection', 'error', `Cannot create bot: ${err.message}`);
       this._setStatus('error');
@@ -152,16 +150,20 @@ class BotManager extends EventEmitter {
     }
 
     try { this.bot.loadPlugin(pathfinder); }
-    catch (err) { console.error('[BotManager] pathfinder load failed:', err.message); }
+    catch (err) { log.error('BotManager', 'pathfinder plugin load failed', err.message); }
 
     this.bot.once('spawn',  () => this._onSpawn());
-    this.bot.on('chat',     (u, m) => this._onChat(u, m).catch(e => console.error('[BotManager] chat error:', e.message)));
+    this.bot.on('chat',     (u, m) => this._onChat(u, m).catch(e => {
+      log.error('BotManager', `Chat handler threw for message from ${u}`, e.message);
+    }));
     this.bot.on('error',    e  => {
+      log.error('BotManager', `Mineflayer error: ${e.message}`);
       this.emit('error', e.message);
       this._bgEvent('connection', 'error', `Connection error: ${e.message}`);
     });
     this.bot.on('end',      r  => this._onEnd(r));
     this.bot.on('kicked',   r  => {
+      log.warn('BotManager', `Kicked from server: ${r}`);
       this.emit('log', `Kicked: ${r}`);
       this._bgEvent('connection', 'error', `Kicked from server`, String(r));
       this._onEnd(r);
@@ -169,6 +171,7 @@ class BotManager extends EventEmitter {
   }
 
   disconnect() {
+    log.bot('BotManager', 'Disconnecting (user-requested)');
     this._clearReconnect();
     this.monologue?.stop();
     this.workers?.destroy();
@@ -298,6 +301,7 @@ class BotManager extends EventEmitter {
 
   _onSpawn() {
     this.connected = true;
+    log.bot('BotManager', `Spawned in world as ${this.bot?.username}`);
     this._setStatus('idle');
 
     // All AI components share the same router instance
@@ -406,7 +410,9 @@ class BotManager extends EventEmitter {
     ]);
 
     if (memIntentResult.status === 'fulfilled' && memIntentResult.value) {
-      await this._handleMemoryIntent(memIntentResult.value, username).catch(e => console.error('[BotManager] mem intent:', e.message));
+      await this._handleMemoryIntent(memIntentResult.value, username).catch(e => {
+        log.error('BotManager', `Memory intent handler threw for "${message.slice(0,60)}"`, e.message);
+      });
     }
 
     if (intentResult.status === 'fulfilled' && intentResult.value) {
@@ -415,7 +421,10 @@ class BotManager extends EventEmitter {
       if (intentResult.value.action !== 'IGNORE') {
         this.convBuffer?.push('user', message);
       }
-      await this._handleIntent(intentResult.value, username, message, { isDirectAddress, isQuestion }).catch(e => console.error('[BotManager] intent:', e.message));
+      log.debug('BotManager', `Intent: ${intentResult.value.action} from ${username}`, `shouldRespond:${intentResult.value.shouldRespond} msg:"${message.slice(0,80)}"`);
+      await this._handleIntent(intentResult.value, username, message, { isDirectAddress, isQuestion }).catch(e => {
+        log.error('BotManager', `Intent handler threw for action ${intentResult.value?.action}`, e.message);
+      });
     }
   }
 
@@ -791,6 +800,7 @@ class BotManager extends EventEmitter {
     this.stateMachine?.destroy();
     this._setStatus('disconnected');
     if (was) {
+      log.bot('BotManager', `Disconnected: ${reason || 'unknown'}`);
       this.emit('log', `Disconnected: ${reason || 'unknown'}`);
       this._bgEvent('connection', 'warn', `Disconnected`, String(reason || 'connection closed'));
     }
@@ -800,6 +810,7 @@ class BotManager extends EventEmitter {
   _scheduleReconnect() {
     this._clearReconnect();
     this._setStatus('reconnecting…');
+    log.bot('BotManager', 'Scheduling reconnect in 8s');
     this._bgEvent('connection', 'info', 'Will reconnect in 8s');
     this._reconnectTimer = setTimeout(() => {
       if (!this.connected) { this.emit('log', 'Reconnecting…'); this.connect(); }

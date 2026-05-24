@@ -1,5 +1,14 @@
 'use strict';
 
+const fs   = require('fs');
+const path = require('path');
+const { resolveDataFile } = require('../paths');
+
+const ENERGY_FILE = resolveDataFile('social-energy.json');
+// Restore energy only if it was saved within the last 4 hours.
+// After a long break Bud should start fresh and social.
+const RESTORE_WINDOW_MS = 4 * 3_600_000;
+
 /**
  * SocialEnergy — the bot's "social battery".
  *
@@ -86,6 +95,35 @@ class SocialEnergy extends EventEmitter {
   destroy() {
     clearInterval(this._chargeTimer);
     this._chargeTimer = null;
+  }
+
+  /**
+   * Persist current energy level to disk.
+   * Called when the bot disconnects so the level isn't reset to 100
+   * on the next session (within the restore window).
+   */
+  save() {
+    try {
+      fs.mkdirSync(path.dirname(ENERGY_FILE), { recursive: true });
+      fs.writeFileSync(ENERGY_FILE, JSON.stringify({
+        level:   Math.round(this._level),
+        savedAt: Date.now(),
+      }, null, 2), 'utf-8');
+    } catch { /* non-fatal */ }
+  }
+
+  /**
+   * Restore energy level from disk if the save is recent enough.
+   * Call once after constructing the SocialEnergy instance.
+   */
+  load() {
+    try {
+      if (!fs.existsSync(ENERGY_FILE)) return;
+      const raw = JSON.parse(fs.readFileSync(ENERGY_FILE, 'utf-8'));
+      if (!raw?.savedAt) return;
+      if (Date.now() - raw.savedAt > RESTORE_WINDOW_MS) return;
+      this._level = Math.min(100, Math.max(0, Number(raw.level) || 100));
+    } catch { /* non-fatal */ }
   }
 
   // ── Internal ──────────────────────────────────────────────────────────────

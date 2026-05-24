@@ -75,6 +75,10 @@ contextBridge.exposeInMainWorld('companion', {
   prefsGet: ()   => ipcRenderer.invoke('prefs:get'),
   prefsSet: p    => ipcRenderer.invoke('prefs:set', p),
 
+  // Conversation history
+  convGet:   ()  => ipcRenderer.invoke('conv:get'),
+  convClear: ()  => ipcRenderer.invoke('conv:clear'),
+
   // Shell
   openDataFolder: () => ipcRenderer.invoke('shell:openDataFolder'),
 

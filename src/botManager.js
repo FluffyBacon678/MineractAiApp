@@ -51,11 +51,17 @@ class BotManager extends EventEmitter {
     this.permissions = new PermissionManager(this.memory);
     this.resources   = new ResourceManager(this.cfg.resources || {});
     this.social      = new SocialEnergy(this.cfg.social || {});
+    this.social.load();   // restore battery from last session (if < 4 h ago)
     this.social.on('social:changed', e => this.emit('social:changed', e));
 
-    // Conversation continuity — persists across reconnects
+    // Conversation continuity — persists across reconnects AND restarts
     const companionName = this.cfg.companion?.name || this.character.getName() || 'Bud';
     this.convBuffer  = new ConversationBuffer(this.cfg.conversation?.maxTurns ?? 20, companionName);
+    this.convBuffer.load();  // reload history from last session
+    const bufStats = this.convBuffer.loadedStats();
+    if (bufStats.turns > 0) {
+      log.bot('BotManager', `Restored ${bufStats.turns} conversation turns (oldest ${bufStats.oldestMinsAgo}m ago)`);
+    }
 
     // Plan executor — executes deep-tier multi-step plans
     this.planExec    = new PlanExecutor(this.cfg.planning || {});
@@ -199,6 +205,7 @@ class BotManager extends EventEmitter {
     if (this.bot) { try { this.bot.quit('Disconnecting'); } catch {} this.bot = null; }
     this._setStatus('disconnected');
     this.connected = false;
+    this._saveSession();
   }
 
   sendChat(message) {
@@ -310,6 +317,7 @@ class BotManager extends EventEmitter {
   updateSocialConfig(cfg) { this.social?.updateConfig(cfg); }
 
   destroy() {
+    this._saveSession();   // persist before tearing down
     this.disconnect();
     this.memory.destroy();
     this.resources.destroy();
@@ -822,6 +830,7 @@ class BotManager extends EventEmitter {
       log.bot('BotManager', `Disconnected: ${reason || 'unknown'}`);
       this.emit('log', `Disconnected: ${reason || 'unknown'}`);
       this._bgEvent('connection', 'warn', `Disconnected`, String(reason || 'connection closed'));
+      this._saveSession();
     }
     this._scheduleReconnect();
   }
@@ -838,6 +847,34 @@ class BotManager extends EventEmitter {
 
   _clearReconnect() {
     if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
+  }
+
+  /**
+   * Persist everything that should survive a restart:
+   *   - conversation buffer (chat history)
+   *   - social energy level
+   *   - a short journal entry in WorldMemory so Bud can reference recent events
+   */
+  _saveSession() {
+    try {
+      this.convBuffer?.save();
+      this.social?.save();
+
+      // Write a timestamped journal entry so Bud's memory contains the session
+      if (this.memory && this.convBuffer?.length > 0) {
+        const turnCount = this.convBuffer.length;
+        this.memory.logAction({
+          type:    'session_end',
+          turns:   turnCount,
+          summary: this.convBuffer._summary || null,
+          note:    `Session ended with ${turnCount} conversation turn(s).`,
+        });
+      }
+
+      log.bot('BotManager', `Session saved — ${this.convBuffer?.length ?? 0} turns, energy ${this.social?.level ?? 100}`);
+    } catch (err) {
+      log.error('BotManager', `Session save failed: ${err.message}`);
+    }
   }
 }
 

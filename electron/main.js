@@ -538,6 +538,34 @@ ipcMain.handle('log:clear',  ()  => { try { persistedLog = []; saveLog(); return
 ipcMain.handle('prefs:get', ()     => { try { return loadPrefs(); } catch { return {}; } });
 ipcMain.handle('prefs:set', (_, p) => { try { return savePrefs(p); } catch { return {}; } });
 
+// ── Conversation buffer ───────────────────────────────────────────────────────
+
+ipcMain.handle('conv:get', () => {
+  try {
+    const buf = bot?.convBuffer;
+    if (!buf) {
+      // Even without a live bot, read the persisted file so the UI can show history
+      const ConversationBuffer = require('../src/ai/conversationBuffer');
+      const tmp = new ConversationBuffer();
+      tmp.load();
+      return { turns: tmp._turns, summary: tmp._summary, stats: tmp.loadedStats() };
+    }
+    return { turns: buf._turns, summary: buf._summary, stats: buf.loadedStats() };
+  } catch { return { turns: [], summary: null, stats: { turns: 0 } }; }
+});
+
+ipcMain.handle('conv:clear', () => {
+  try {
+    if (bot?.convBuffer) bot.convBuffer.clear();
+    // Also wipe the disk copy
+    const { resolveDataFile } = require('../src/paths');
+    const fp = resolveDataFile('conversation-buffer.json');
+    if (require('fs').existsSync(fp)) require('fs').unlinkSync(fp);
+    log.bot('Main', 'Conversation history cleared by user');
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('shell:openDataFolder', () => { try { shell.openPath(DATA_DIR); return { ok: true }; } catch { return { ok: false }; } });

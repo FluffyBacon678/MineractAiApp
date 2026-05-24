@@ -709,6 +709,28 @@ code{font-family:'Cascadia Code','Consolas',monospace;font-size:11.5px;color:var
       </table>
     </div>
   </div>
+
+  <!-- ── Conversation History ─────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="chdr">
+      <div class="ctitle">Conversation History</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="dim" id="conv-stats" style="font-size:12px"></span>
+        <button class="btn sm ghost" id="conv-refresh">↻</button>
+        <button class="btn sm dan"   id="conv-clear">Forget All</button>
+      </div>
+    </div>
+    <div class="dim" style="font-size:12px;margin-bottom:10px">
+      What Bud remembers from previous chats. Automatically saved on disconnect, discarded after 3 days.
+    </div>
+    <div id="conv-summary-row" style="display:none;margin-bottom:8px">
+      <div class="dim" style="font-size:11px;color:var(--acc)">📝 Earlier summary:</div>
+      <div id="conv-summary-text" style="font-size:12px;padding:6px 8px;background:var(--bg2);border-radius:6px;margin-top:4px"></div>
+    </div>
+    <div id="conv-list" style="display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto">
+      <div class="dim">No conversation history saved yet.</div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════ CACHE TIMING -->
@@ -1209,7 +1231,7 @@ function navTo(page){
   if(pg) pg.classList.add('active');
   curPage=page;
   if(page==='chat'){ unread=0; $('chat-badge').style.display='none'; $('chat-badge').textContent='0'; }
-  if(page==='memory')      refreshMemory();
+  if(page==='memory')      { refreshMemory(); refreshConvHistory(); }
   if(page==='log')         refreshLog();
   if(page==='permissions') refreshPermissions();
   if(page==='staleness')   refreshStaleness();
@@ -1486,6 +1508,48 @@ async function refreshMemory(){
 }
 window.memDel=async id=>{ await api.memoryDelete(id).catch(()=>{}); refreshMemory(); };
 window.memRefresh=async id=>{ const r=await api.memoryRefresh(id).catch(()=>({ok:false,reason:'?'})); addSysMsg(r.reason||'Refreshed'); refreshMemory(); };
+
+// ── Conversation history ──────────────────────────────────────────────────────
+async function refreshConvHistory(){
+  try{
+    const data=await api.convGet().catch(()=>null);
+    if(!data){ $('conv-list').innerHTML='<div class="dim">Could not load.</div>'; return; }
+    const turns=data.turns||[], summary=data.summary||null;
+    const stats=data.stats||{};
+    $('conv-stats').textContent=turns.length
+      ? `${turns.length} turn${turns.length>1?'s':''} · oldest ${stats.oldestMinsAgo??'?'}m ago`
+      : 'no history';
+    if(summary){
+      $('conv-summary-row').style.display='';
+      $('conv-summary-text').textContent=summary;
+    } else {
+      $('conv-summary-row').style.display='none';
+    }
+    if(!turns.length){
+      $('conv-list').innerHTML='<div class="dim">No conversation history saved yet.</div>';
+      return;
+    }
+    $('conv-list').innerHTML=turns.slice(-40).map(t=>{
+      const isUser=t.role==='user';
+      const age=t.ts?Math.round((Date.now()-t.ts)/60000):null;
+      const ageStr=age!=null?(age<60?`${age}m ago`:`${Math.round(age/60)}h ago`):'';
+      return `<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:${isUser?'var(--bg2)':'var(--bg3)'}">
+        <span style="font-size:10px;font-weight:600;color:${isUser?'var(--acc)':'var(--green)'};min-width:50px;padding-top:2px">${isUser?'Player':'Bud'}</span>
+        <span style="font-size:12px;flex:1;line-height:1.5">${esc(t.content)}</span>
+        <span style="font-size:10px;color:var(--muted);white-space:nowrap">${esc(ageStr)}</span>
+      </div>`;
+    }).join('');
+    // Scroll to bottom to show most recent
+    const el=$('conv-list'); el.scrollTop=el.scrollHeight;
+  }catch(e){ $('conv-list').innerHTML=`<div class="dim">Error: ${esc(e.message)}</div>`; }
+}
+$('conv-refresh').addEventListener('click',refreshConvHistory);
+$('conv-clear').addEventListener('click',async()=>{
+  if(!confirm('Clear all of Bud\'s conversation history? This cannot be undone.')) return;
+  await api.convClear().catch(()=>{});
+  refreshConvHistory();
+  addSysMsg('Conversation history cleared.');
+});
 $('mem-refresh-btn').addEventListener('click',refreshMemory);
 $('mem-add').addEventListener('click',async()=>{
   const name=$('mem-name').value.trim(),x=parseFloat($('mem-x').value),z=parseFloat($('mem-z').value),y=parseFloat($('mem-y').value);
